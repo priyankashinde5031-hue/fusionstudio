@@ -46,7 +46,7 @@ production. The same SQL migrations are applied to both to keep schemas identica
 
 - Client Components: `import { createClient } from "@/lib/supabase/client"`
 - Server Components / Route Handlers / Server Actions: `import { createClient } from "@/lib/supabase/server"`
-- Session refresh is handled by `src/middleware.ts`.
+- Session refresh is handled by `src/proxy.ts` (this Next.js version renamed the `middleware` convention to `proxy`).
 
 ## Database migrations
 
