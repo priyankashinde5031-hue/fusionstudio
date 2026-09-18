@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -5,6 +6,12 @@ export const dynamic = "force-dynamic";
 type Check = { label: string; ok: boolean; detail: string };
 
 export default async function ConnectionTestPage() {
+  // Diagnostic route: hidden on production, available on preview/staging and
+  // local dev (where VERCEL_ENV is "preview", "development", or undefined).
+  if (process.env.VERCEL_ENV === "production") {
+    notFound();
+  }
+
   const checks: Check[] = [];
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
