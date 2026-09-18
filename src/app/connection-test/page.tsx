@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { db } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,28 @@ export default async function ConnectionTestPage() {
   } catch (e) {
     checks.push({
       label: "Supabase reachable (auth endpoint)",
+      ok: false,
+      detail: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  // Service-role self-test: read a row count that RLS would block for anon.
+  // If the SERVICE_ROLE key is wrong (e.g. anon pasted in), this returns 0/err.
+  try {
+    const { count, error } = await db()
+      .from("admins")
+      .select("*", { count: "exact", head: true });
+    const ok = !error && (count ?? 0) > 0;
+    checks.push({
+      label: "Service-role read (admins count)",
+      ok,
+      detail: error
+        ? `ERROR: ${error.message} — key likely wrong (anon?) or RLS-blocked`
+        : `${count ?? 0} admins visible${(count ?? 0) === 0 ? " — service role NOT bypassing RLS" : " — service role OK"}`,
+    });
+  } catch (e) {
+    checks.push({
+      label: "Service-role read (admins count)",
       ok: false,
       detail: e instanceof Error ? e.message : String(e),
     });
