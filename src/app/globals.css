@@ -1,26 +1,281 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   Fusion Studio — luxury salon design system
+   Matte black + champagne gold. Bold, tactile, expensive.
+   ============================================================ */
+
+@theme {
+  /* Ink / surfaces (near-black, layered) */
+  --color-ink: #0b0b0d;
+  --color-ink-2: #101014;
+  --color-surface: #141419;
+  --color-surface-2: #1b1b22;
+  --color-elevated: #21212a;
+  --color-hairline: #2c2c36;
+  --color-hairline-strong: #3a3a46;
+
+  /* Champagne gold accent ramp */
+  --color-gold: #d9b36c;
+  --color-gold-bright: #f0d191;
+  --color-gold-deep: #b08d47;
+  --color-gold-soft: rgba(217, 179, 108, 0.14);
+
+  /* Text */
+  --color-fg: #f4f1ea;
+  --color-muted: #a7a39b;
+  --color-faint: #726f68;
+
+  /* Status */
+  --color-success: #58c58a;
+  --color-danger: #e5675f;
+  --color-warn: #e0b13c;
+  --color-info: #7aa7e0;
+
+  /* Tier accents */
+  --color-tier-silver: #c7ccd1;
+  --color-tier-gold: #e6c076;
+  --color-tier-platinum: #d8e0e6;
+  --color-tier-black: #d9b36c;
+
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-card: 22px;
+
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.5), 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("https://fonts.gstatic.com/s/cormorantgaramond/v21/co3bmX5slCNuHLi8bLeY9MK7whWMhyjornFLsS6V7w.woff2")
+    format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+2074, U+20AC, U+2122;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-ink);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  /* Subtle ambient gold glow, top-anchored */
+  background-image:
+    radial-gradient(1200px 600px at 78% -10%, rgba(217, 179, 108, 0.09), transparent 60%),
+    radial-gradient(900px 500px at 0% 0%, rgba(217, 179, 108, 0.04), transparent 55%);
+  background-attachment: fixed;
+}
+
+::selection {
+  background: rgba(217, 179, 108, 0.28);
+  color: #fff;
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hairline-strong) transparent;
+}
+
+/* ── Reusable component classes ─────────────────────────────── */
+
+@layer components {
+  .display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+  }
+
+  .eyebrow {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-gold);
+  }
+
+  .wordmark {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  /* Panels / cards */
+  .panel {
+    background: linear-gradient(180deg, var(--color-surface), var(--color-ink-2));
+    border: 1px solid var(--color-hairline);
+    border-radius: 16px;
+    box-shadow: var(--shadow-soft);
+  }
+  .panel-hover {
+    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .panel-hover:hover {
+    border-color: var(--color-hairline-strong);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lift);
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: 44px;
+    padding: 0 1.15rem;
+    border-radius: 11px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease,
+      box-shadow 0.18s ease, opacity 0.18s ease;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .btn:active {
+    transform: translateY(1px) scale(0.99);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-gold {
+    background: linear-gradient(180deg, var(--color-gold-bright), var(--color-gold));
+    color: #241c0c;
+    border: 1px solid var(--color-gold-deep);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset,
+      0 8px 22px rgba(217, 179, 108, 0.22);
+  }
+  .btn-gold:hover:not(:disabled) {
+    background: linear-gradient(180deg, #f6dca6, var(--color-gold-bright));
+  }
+  .btn-ghost {
+    background: var(--color-surface-2);
+    color: var(--color-fg);
+    border: 1px solid var(--color-hairline);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: var(--color-hairline-strong);
+    background: var(--color-elevated);
+  }
+  .btn-danger {
+    background: transparent;
+    color: var(--color-danger);
+    border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  }
+  .btn-sm {
+    height: 36px;
+    padding: 0 0.85rem;
+    font-size: 0.82rem;
+    border-radius: 9px;
+  }
+
+  /* Inputs */
+  .label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--color-muted);
+    margin-bottom: 0.4rem;
+  }
+  .input,
+  .textarea,
+  .select {
+    width: 100%;
+    background: var(--color-ink-2);
+    border: 1px solid var(--color-hairline);
+    border-radius: 11px;
+    padding: 0.72rem 0.9rem;
+    color: var(--color-fg);
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+  }
+  .input::placeholder,
+  .textarea::placeholder {
+    color: var(--color-faint);
+  }
+  .input:focus,
+  .textarea:focus,
+  .select:focus {
+    outline: none;
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 3px var(--color-gold-soft);
+    background: var(--color-surface);
+  }
+  .textarea {
+    resize: vertical;
+    min-height: 88px;
+    line-height: 1.5;
+  }
+
+  /* Chips / badges */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 26px;
+    padding: 0 0.6rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    border: 1px solid var(--color-hairline-strong);
+    color: var(--color-muted);
+    background: var(--color-surface-2);
+  }
+  .chip-gold {
+    color: var(--color-gold-bright);
+    border-color: color-mix(in srgb, var(--color-gold) 45%, transparent);
+    background: var(--color-gold-soft);
+  }
+  .chip-success {
+    color: var(--color-success);
+    border-color: color-mix(in srgb, var(--color-success) 40%, transparent);
+    background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  }
+  .chip-danger {
+    color: var(--color-danger);
+    border-color: color-mix(in srgb, var(--color-danger) 40%, transparent);
+    background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  }
+  .chip-muted {
+    opacity: 0.8;
+  }
+
+  .hairline {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-hairline), transparent);
+    border: 0;
+  }
+
+  .mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }
