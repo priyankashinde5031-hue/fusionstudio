@@ -85,8 +85,16 @@ export interface AssignedCoupon {
   code_expires_at: string | null;
   redeemed_at: string | null;
   redeemed_by_admin_id: string | null;
+  source: "admin" | "default" | "transfer";
   created_at: string;
   updated_at: string;
+}
+
+export interface MembershipTypeDefaultCoupon {
+  id: string;
+  membership_type_id: string;
+  coupon_definition_id: string;
+  created_at: string;
 }
 
 export interface CouponTransfer {

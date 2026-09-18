@@ -3,8 +3,13 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/admin";
 import { db } from "@/lib/supabase/admin";
 import { MembershipTypeForm } from "@/components/admin/MembershipTypeForm";
-import { updateMembershipType, toggleMembershipTypeActive } from "../actions";
-import type { MembershipType, Benefit } from "@/lib/db/types";
+import { DefaultCouponsForm } from "@/components/admin/DefaultCouponsForm";
+import {
+  updateMembershipType,
+  toggleMembershipTypeActive,
+  updateDefaultCoupons,
+} from "../actions";
+import type { MembershipType, Benefit, CouponDefinition } from "@/lib/db/types";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +37,29 @@ export default async function EditMembershipTypePage({
 
   const benefitsBlock = ((benefitRows ?? []) as Benefit[]).map((b) => b.text).join("\n");
 
+  const [{ data: activeCoupons }, { data: defaultLinks }] = await Promise.all([
+    supabase
+      .from("coupon_definitions")
+      .select("id, name, description")
+      .eq("is_active", true)
+      .order("name"),
+    supabase
+      .from("membership_type_default_coupons")
+      .select("coupon_definition_id")
+      .eq("membership_type_id", id),
+  ]);
+
+  const couponOptions = (activeCoupons ?? []) as Pick<
+    CouponDefinition,
+    "id" | "name" | "description"
+  >[];
+  const selectedDefaultIds = (defaultLinks ?? []).map(
+    (l: { coupon_definition_id: string }) => l.coupon_definition_id,
+  );
+
   const boundUpdate = updateMembershipType.bind(null, id);
   const boundToggle = toggleMembershipTypeActive.bind(null, id, !t.is_active);
+  const boundDefaults = updateDefaultCoupons.bind(null, id);
 
   return (
     <div>
@@ -71,6 +97,19 @@ export default async function EditMembershipTypePage({
           benefits: benefitsBlock,
         }}
       />
+
+      <div className="panel p-6 mt-6">
+        <div className="eyebrow mb-1">Default coupons</div>
+        <p className="text-sm mb-4" style={{ color: "var(--color-muted)" }}>
+          Coupons every {t.name} cardholder gets automatically, shown as available
+          in their wallet.
+        </p>
+        <DefaultCouponsForm
+          action={boundDefaults}
+          coupons={couponOptions}
+          selectedIds={selectedDefaultIds}
+        />
+      </div>
     </div>
   );
 }
