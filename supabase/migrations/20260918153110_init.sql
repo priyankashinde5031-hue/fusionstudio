@@ -1,0 +1,14 @@
+-- Fusion Studio — initial migration
+--
+-- This is the first migration. Add your schema (tables, RLS policies,
+-- functions) below or in new migration files created with:
+--   supabase migration new <name>
+--
+-- Apply locally:      supabase db reset        (rebuilds local DB from migrations)
+-- Push to staging:    supabase db push          (with staging project linked)
+-- Push to production:  supabase db push          (with production project linked)
+--
+-- Keep staging and production schemas identical by applying the same
+-- migrations to both, promoting staging -> production only after testing.
+
+-- (no schema yet)
