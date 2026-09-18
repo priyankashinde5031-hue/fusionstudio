@@ -45,11 +45,16 @@ export default async function EditCouponPage({
             {c.id}
           </div>
         </div>
-        <form action={boundToggle}>
-          <button type="submit" className={c.is_active ? "btn btn-danger btn-sm" : "btn btn-ghost btn-sm"}>
-            {c.is_active ? "Deactivate" : "Reactivate"}
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          <Link href={`/admin/coupons/${id}/assign`} className="btn btn-gold btn-sm">
+            Assign to members
+          </Link>
+          <form action={boundToggle}>
+            <button type="submit" className={c.is_active ? "btn btn-danger btn-sm" : "btn btn-ghost btn-sm"}>
+              {c.is_active ? "Deactivate" : "Reactivate"}
+            </button>
+          </form>
+        </div>
       </div>
 
       <CouponForm

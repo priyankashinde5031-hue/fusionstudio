@@ -3,12 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const NAV = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: string;
+  exact?: boolean;
+  soon?: boolean;
+};
+
+const NAV: NavItem[] = [
   { href: "/admin", label: "Overview", icon: "◈", exact: true },
   { href: "/admin/membership-types", label: "Membership Types", icon: "❖" },
   { href: "/admin/coupons", label: "Coupons", icon: "✦" },
-  // Phase 2+ (shown as upcoming)
-  { href: "/admin/members", label: "Members", icon: "◐", soon: true },
+  { href: "/admin/members", label: "Members", icon: "◐" },
 ];
 
 export function SidebarNav() {

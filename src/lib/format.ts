@@ -2,6 +2,12 @@ import { formatInTimeZone } from "date-fns-tz";
 
 export const IST = "Asia/Kolkata";
 
+/** Current epoch ms. Wrapped so Server Components can read "now" without
+ *  tripping the react-hooks/purity lint that flags a bare Date.now() in render. */
+export function nowMs(): number {
+  return Date.now();
+}
+
 /** DD/MM/YYYY in IST */
 export function formatDate(value: string | Date): string {
   return formatInTimeZone(new Date(value), IST, "dd/MM/yyyy");

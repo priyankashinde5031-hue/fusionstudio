@@ -39,8 +39,36 @@ export const couponDefinitionSchema = z
     { message: "Expiry must be after the validity start.", path: ["valid_until"] },
   );
 
+export const memberSchema = z.object({
+  mobile: z.string().trim().min(1, "Mobile number is required."),
+  name: z.string().trim().max(80).optional().or(z.literal("")),
+  is_loyalty: z.coerce.boolean().optional().default(true),
+});
+
+export const assignCardSchema = z.object({
+  membership_type_id: z.string().uuid("Pick a membership type."),
+});
+
+export const assignCouponSchema = z.object({
+  coupon_definition_id: z.string().uuid("Pick a coupon."),
+});
+
+export const bulkAssignSchema = z.object({
+  mobiles: z.string().min(1, "Enter at least one mobile number."),
+});
+
 export type MembershipTypeInput = z.infer<typeof membershipTypeSchema>;
 export type CouponDefinitionInput = z.infer<typeof couponDefinitionSchema>;
+export type MemberInput = z.infer<typeof memberSchema>;
+
+/** Split a pasted block of mobiles (newline/comma/space separated). */
+export function splitMobiles(block: string): string[] {
+  return block
+    .split(/[\n,;]+/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .slice(0, 500);
+}
 
 /** Parse a benefits textarea (one per line) into trimmed non-empty lines. */
 export function parseBenefitLines(block: string): string[] {

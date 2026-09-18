@@ -34,7 +34,7 @@ export default async function AdminOverview() {
   const stats = [
     { label: "Membership Types", value: typeCount, sub: `${activeTypes} active`, href: "/admin/membership-types" },
     { label: "Coupons", value: couponCount, sub: `${activeCoupons} active`, href: "/admin/coupons" },
-    { label: "Members", value: memberCount, sub: "Phase 2", href: "/admin/members", soon: true },
+    { label: "Members", value: memberCount, sub: "View all", href: "/admin/members" },
   ];
 
   return (
@@ -43,7 +43,7 @@ export default async function AdminOverview() {
         <div className="eyebrow mb-2">Overview</div>
         <h1 className="display text-4xl sm:text-5xl">Welcome back, {firstName}.</h1>
         <p className="mt-2 text-sm" style={{ color: "var(--color-muted)" }}>
-          Define tiers, benefits and coupons. Phase 1 — foundation &amp; admin core.
+          Define tiers and coupons, issue cards, and hand out coupons.
         </p>
       </div>
 
@@ -61,11 +61,7 @@ export default async function AdminOverview() {
               </div>
             </>
           );
-          return s.soon ? (
-            <div key={s.label} className="panel p-5" style={{ opacity: 0.6 }}>
-              {inner}
-            </div>
-          ) : (
+          return (
             <Link key={s.label} href={s.href} className="panel panel-hover p-5 block">
               {inner}
             </Link>
