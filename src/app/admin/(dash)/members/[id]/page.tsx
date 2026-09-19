@@ -10,6 +10,7 @@ import {
   assignCardAction,
   assignCouponToMemberAction,
   upgradeMember,
+  resetMemberPin,
 } from "../actions";
 import type {
   Member,
@@ -82,6 +83,7 @@ export default async function MemberDetailPage({
   const boundAssignCard = assignCardAction.bind(null, id);
   const boundAssignCoupon = assignCouponToMemberAction.bind(null, id);
   const boundUpgrade = upgradeMember.bind(null, id);
+  const boundResetPin = resetMemberPin.bind(null, id);
 
   return (
     <div>
@@ -101,17 +103,27 @@ export default async function MemberDetailPage({
             {formatMobile(member.mobile)}
           </div>
           <div className="text-xs mt-1" style={{ color: "var(--color-faint)" }}>
-            {member.mobile_verified_at ? "Verified" : "Not yet verified"} · joined{" "}
-            {formatDate(member.created_at)} · via {member.created_via}
+            {member.mobile_verified_at ? "Verified" : "Not yet verified"} ·{" "}
+            {member.pin_hash ? (member.pin_reset_required ? "PIN reset pending" : "PIN set") : "No PIN yet"} ·
+            joined {formatDate(member.created_at)} · via {member.created_via}
           </div>
         </div>
-        {!member.is_loyalty && (
-          <form action={boundUpgrade}>
-            <button type="submit" className="btn btn-gold btn-sm">
-              ↑ Upgrade to Loyalty
-            </button>
-          </form>
-        )}
+        <div className="flex items-center gap-2">
+          {!member.is_loyalty && (
+            <form action={boundUpgrade}>
+              <button type="submit" className="btn btn-gold btn-sm">
+                ↑ Upgrade to Loyalty
+              </button>
+            </form>
+          )}
+          {(member.pin_hash || member.mobile_verified_at) && !member.pin_reset_required && (
+            <form action={boundResetPin}>
+              <button type="submit" className="btn btn-ghost btn-sm">
+                Reset PIN
+              </button>
+            </form>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

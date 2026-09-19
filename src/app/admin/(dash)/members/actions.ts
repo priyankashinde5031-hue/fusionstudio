@@ -67,6 +67,19 @@ export async function createMember(
   redirect(`/admin/members/${created.id}`);
 }
 
+/** Force the member through mobile verification + new PIN on next login (§4). */
+export async function resetMemberPin(memberId: string): Promise<void> {
+  const admin = await requireAdmin();
+  await db().from("members").update({ pin_reset_required: true }).eq("id", memberId);
+  await audit({
+    adminId: admin.adminId,
+    action: "member.pin_reset",
+    entityType: "member",
+    entityId: memberId,
+  });
+  revalidatePath(`/admin/members/${memberId}`);
+}
+
 export async function upgradeMember(memberId: string): Promise<void> {
   const admin = await requireAdmin();
   await db().from("members").update({ is_loyalty: true }).eq("id", memberId);

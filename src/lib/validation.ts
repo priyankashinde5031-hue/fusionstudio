@@ -2,6 +2,11 @@ import { z } from "zod";
 
 export const themeEnum = z.enum(["silver", "gold", "platinum", "black"]);
 
+export const pinSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4,6}$/, "PIN must be 4–6 digits.");
+
 export const adminLoginSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email."),
   password: z.string().min(1, "Enter your password."),
