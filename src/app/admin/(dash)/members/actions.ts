@@ -6,6 +6,7 @@ import { db } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/admin";
 import { audit } from "@/lib/audit";
 import { findOrCreateMember, issueCard } from "@/lib/members";
+import { redeemByCode } from "@/lib/coupons";
 import { normalizeMobile } from "@/lib/format";
 import {
   memberSchema,
@@ -152,6 +153,21 @@ export async function assignCouponToMemberAction(
 
   revalidatePath(`/admin/members/${memberId}`);
   return { ok: `Coupon ${created.coupon_number} assigned.` };
+}
+
+/** Staff redeem a member's revealed coupon by the code the customer shows. */
+export async function redeemCouponAction(
+  memberId: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const admin = await requireAdmin();
+  const code = String(formData.get("code") ?? "");
+  const result = await redeemByCode(admin.adminId, memberId, code);
+  if (!result.ok) return { error: result.error };
+
+  revalidatePath(`/admin/members/${memberId}`);
+  return { ok: `Redeemed ${result.couponName ?? result.couponNumber}.` };
 }
 
 /** Bulk-assign one coupon definition to a pasted list of mobiles. */

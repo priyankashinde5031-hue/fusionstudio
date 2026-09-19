@@ -4,6 +4,9 @@ import { db } from "@/lib/supabase/admin";
 import { formatDate, formatMobile, nowMs } from "@/lib/format";
 import { TIER_THEMES } from "@/lib/themes";
 import { MembershipCardMini } from "@/components/MembershipCardMini";
+import { RevealButton } from "@/components/app/RevealButton";
+import { RevealedCouponCard } from "@/components/app/RevealedCouponCard";
+import { revalidateCoupons } from "@/lib/coupons";
 import { logoutMember } from "./login/actions";
 import type {
   Member,
@@ -39,6 +42,9 @@ export default async function CustomerHome() {
   // Session valid but member gone/deactivated — treat as signed out.
   if (!memberRow) redirect("/app/login");
   const member = memberRow as Member;
+
+  // Lazy state correction (§7): fix any lapsed reveals / expiries on read.
+  await revalidateCoupons({ memberId: member.id });
 
   const [{ data: cardRows }, { data: couponRows }] = await Promise.all([
     supabase
@@ -174,42 +180,51 @@ export default async function CustomerHome() {
                       {g.label} ({items.length})
                     </div>
                     <div className="flex flex-col gap-2.5">
-                      {items.map((c) => (
-                        <div
-                          key={c.id}
-                          className="panel p-4"
-                          style={{ opacity: g.key === "used" || g.key === "expired" ? 0.6 : 1 }}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="font-semibold truncate">
-                                {c.coupon_definition?.name ?? "Coupon"}
+                      {items.map((c) => {
+                        // Active (revealed) coupons show the code + live countdown.
+                        if (g.key === "revealed" && c.redemption_code && c.code_expires_at) {
+                          return (
+                            <RevealedCouponCard
+                              key={c.id}
+                              name={c.coupon_definition?.name ?? "Coupon"}
+                              description={c.coupon_definition?.description ?? ""}
+                              couponNumber={c.coupon_number}
+                              code={c.redemption_code}
+                              expiresAt={c.code_expires_at}
+                            />
+                          );
+                        }
+                        return (
+                          <div
+                            key={c.id}
+                            className="panel p-4"
+                            style={{ opacity: g.key === "used" || g.key === "expired" ? 0.6 : 1 }}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="font-semibold truncate">
+                                  {c.coupon_definition?.name ?? "Coupon"}
+                                </div>
+                                <div className="text-sm mt-0.5" style={{ color: "var(--color-muted)" }}>
+                                  {c.coupon_definition?.description}
+                                </div>
                               </div>
-                              <div className="text-sm mt-0.5" style={{ color: "var(--color-muted)" }}>
-                                {c.coupon_definition?.description}
-                              </div>
+                              {g.key === "available" ? (
+                                <RevealButton couponId={c.id} />
+                              ) : (
+                                <span className="chip chip-muted">{g.label}</span>
+                              )}
                             </div>
-                            <span
-                              className={
-                                g.key === "available"
-                                  ? "chip chip-success"
-                                  : g.key === "revealed"
-                                    ? "chip chip-gold"
-                                    : "chip chip-muted"
-                              }
-                            >
-                              {g.label}
-                            </span>
+                            {c.coupon_definition && (
+                              <div className="mt-3 flex items-center gap-3 text-xs mono" style={{ color: "var(--color-faint)" }}>
+                                <span>{c.coupon_number}</span>
+                                <span style={{ color: "var(--color-hairline-strong)" }}>·</span>
+                                <span>exp {formatDate(c.coupon_definition.valid_until)}</span>
+                              </div>
+                            )}
                           </div>
-                          {c.coupon_definition && (
-                            <div className="mt-3 flex items-center gap-3 text-xs mono" style={{ color: "var(--color-faint)" }}>
-                              <span>{c.coupon_number}</span>
-                              <span style={{ color: "var(--color-hairline-strong)" }}>·</span>
-                              <span>exp {formatDate(c.coupon_definition.valid_until)}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -217,7 +232,7 @@ export default async function CustomerHome() {
             </div>
           )}
           <p className="text-xs mt-4 text-center" style={{ color: "var(--color-faint)" }}>
-            Reveal &amp; transfer are coming next.
+            Transfer is coming next.
           </p>
         </section>
       </main>

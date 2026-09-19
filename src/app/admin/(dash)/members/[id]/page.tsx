@@ -6,11 +6,14 @@ import { formatMobile, formatDate, nowMs } from "@/lib/format";
 import { TIER_THEMES } from "@/lib/themes";
 import { MembershipCardMini } from "@/components/MembershipCardMini";
 import { AssignCardForm, AssignCouponForm } from "@/components/admin/AssignForms";
+import { RedeemForm } from "@/components/admin/RedeemForm";
+import { revalidateCoupons } from "@/lib/coupons";
 import {
   assignCardAction,
   assignCouponToMemberAction,
   upgradeMember,
   resetMemberPin,
+  redeemCouponAction,
 } from "../actions";
 import type {
   Member,
@@ -48,6 +51,9 @@ export default async function MemberDetailPage({
   if (!memberRow) notFound();
   const member = memberRow as Member;
 
+  // Keep coupon states accurate for staff (§7 lazy compute).
+  await revalidateCoupons({ memberId: id });
+
   const [{ data: cardRows }, { data: couponRows }, { data: typeRows }, { data: couponDefs }] =
     await Promise.all([
       supabase
@@ -84,6 +90,8 @@ export default async function MemberDetailPage({
   const boundAssignCoupon = assignCouponToMemberAction.bind(null, id);
   const boundUpgrade = upgradeMember.bind(null, id);
   const boundResetPin = resetMemberPin.bind(null, id);
+  const boundRedeem = redeemCouponAction.bind(null, id);
+  const hasRevealed = coupons.some((c) => c.status === "revealed");
 
   return (
     <div>
@@ -209,6 +217,21 @@ export default async function MemberDetailPage({
               ))}
             </div>
           )}
+
+          <div
+            className="panel p-5"
+            style={
+              hasRevealed
+                ? { borderColor: "color-mix(in srgb, var(--color-gold) 45%, transparent)" }
+                : undefined
+            }
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <div className="eyebrow">Redeem a coupon</div>
+              {hasRevealed && <span className="chip chip-gold">code active</span>}
+            </div>
+            <RedeemForm action={boundRedeem} />
+          </div>
 
           <div className="panel p-5">
             <div className="eyebrow mb-3">Assign a coupon</div>
