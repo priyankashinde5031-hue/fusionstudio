@@ -78,6 +78,30 @@ export default async function MemberDetailPage({
 
   const cards = (cardRows ?? []) as CardWithType[];
   const coupons = (couponRows ?? []) as CouponWithDef[];
+
+  // Redemption log (who availed each punch), grouped per coupon.
+  type Redemption = {
+    assigned_coupon_id: string;
+    used_by_name: string | null;
+    used_by_mobile: string | null;
+    redeemed_by_admin_id: string | null;
+    created_at: string;
+  };
+  const couponIds = coupons.map((c) => c.id);
+  const redemptionsByCoupon = new Map<string, Redemption[]>();
+  if (couponIds.length) {
+    const { data: redRows } = await supabase
+      .from("coupon_redemptions")
+      .select("assigned_coupon_id, used_by_name, used_by_mobile, redeemed_by_admin_id, created_at")
+      .in("assigned_coupon_id", couponIds)
+      .order("created_at", { ascending: true });
+    for (const r of (redRows ?? []) as Redemption[]) {
+      const list = redemptionsByCoupon.get(r.assigned_coupon_id) ?? [];
+      list.push(r);
+      redemptionsByCoupon.set(r.assigned_coupon_id, list);
+    }
+  }
+
   const now = nowMs();
   const activeCard =
     cards.find((c) => c.status === "active" && new Date(c.valid_until).getTime() > now) ?? null;
@@ -236,37 +260,65 @@ export default async function MemberDetailPage({
               </div>
             ) : (
               <div className="panel overflow-hidden">
-                {sortedCoupons.map((c, i) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center gap-3 px-4 py-3"
-                    style={{
-                      borderTop: i === 0 ? "none" : "1px solid var(--color-hairline)",
-                      opacity: c.status === "redeemed" || c.status === "expired" ? 0.65 : 1,
-                    }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm truncate">
-                        {c.coupon_definition?.name ?? "Coupon"}
+                {sortedCoupons.map((c, i) => {
+                  const limit = c.coupon_definition?.usage_limit ?? 1;
+                  const log = redemptionsByCoupon.get(c.id) ?? [];
+                  return (
+                    <div
+                      key={c.id}
+                      className="px-4 py-3"
+                      style={{
+                        borderTop: i === 0 ? "none" : "1px solid var(--color-hairline)",
+                        opacity: c.status === "redeemed" || c.status === "expired" ? 0.75 : 1,
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-sm truncate">
+                            {c.coupon_definition?.name ?? "Coupon"}
+                            {limit > 1 && (
+                              <span style={{ color: "var(--color-faint)" }}>
+                                {" "}· {c.uses_count} of {limit} used
+                              </span>
+                            )}
+                          </div>
+                          <div className="mono text-xs truncate" style={{ color: "var(--color-faint)" }}>
+                            {c.coupon_number}
+                          </div>
+                        </div>
+                        <span className={COUPON_CHIP[c.status] ?? "chip"}>{c.status}</span>
+                        {c.status !== "redeemed" && (
+                          <UnassignButton
+                            action={unassignCouponAction.bind(null, id, c.id)}
+                            label={c.coupon_definition?.name ?? c.coupon_number}
+                          />
+                        )}
                       </div>
-                      <div className="mono text-xs truncate" style={{ color: "var(--color-faint)" }}>
-                        {c.coupon_number}
-                      </div>
-                      {c.status === "redeemed" && c.redeemed_at && (
-                        <div className="text-xs mt-0.5" style={{ color: "var(--color-faint)" }}>
-                          Used {formatDateTime(c.redeemed_at)}
+
+                      {log.length > 0 && (
+                        <div
+                          className="mt-2 pl-3 flex flex-col gap-1"
+                          style={{ borderLeft: "2px solid var(--color-hairline-strong)" }}
+                        >
+                          {log.map((r, idx) => {
+                            const who =
+                              r.used_by_name ||
+                              (r.used_by_mobile ? formatMobile(r.used_by_mobile) : "Not recorded");
+                            return (
+                              <div key={idx} className="text-xs" style={{ color: "var(--color-muted)" }}>
+                                <span style={{ color: "var(--color-gold)" }}>#{idx + 1}</span>{" "}
+                                <span className="font-medium" style={{ color: "var(--color-fg)" }}>
+                                  {who}
+                                </span>{" "}
+                                · {formatDateTime(r.created_at)}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
-                    <span className={COUPON_CHIP[c.status] ?? "chip"}>{c.status}</span>
-                    {c.status !== "redeemed" && (
-                      <UnassignButton
-                        action={unassignCouponAction.bind(null, id, c.id)}
-                        label={c.coupon_definition?.name ?? c.coupon_number}
-                      />
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

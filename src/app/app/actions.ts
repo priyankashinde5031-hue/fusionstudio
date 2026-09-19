@@ -7,6 +7,10 @@ import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 export interface RevealState {
   error?: string;
+  code?: string;
+  couponName?: string;
+  usesLeft?: number;
+  usageLimit?: number;
 }
 
 export async function revealCouponAction(
@@ -25,7 +29,12 @@ export async function revealCouponAction(
   if (!result.ok) return { error: result.error ?? "Could not reveal." };
 
   revalidatePath("/app");
-  return {};
+  return {
+    code: result.code,
+    couponName: result.couponName,
+    usesLeft: result.usesLeft,
+    usageLimit: result.usageLimit,
+  };
 }
 
 export async function hideCouponAction(

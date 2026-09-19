@@ -64,6 +64,9 @@ async function generateUniqueRevealCode(): Promise<string> {
 export interface RevealResult {
   ok: boolean;
   code?: string;
+  couponName?: string;
+  usesLeft?: number;
+  usageLimit?: number;
   error?: string;
 }
 
@@ -98,10 +101,18 @@ export async function revealCoupon(
   const coupon = row as unknown as AssignedCoupon & { coupon_definition: CouponDefinition | null };
   const def = coupon.coupon_definition;
 
+  const limitNow = coupon.coupon_definition?.usage_limit ?? 1;
+  const leftNow = Math.max(limitNow - coupon.uses_count, 0);
   if (coupon.status === "redeemed") return { ok: false, error: "This coupon is already used." };
   if (coupon.status === "revealed") {
     // Already revealed — just return the existing code.
-    return { ok: true, code: coupon.redemption_code ?? undefined };
+    return {
+      ok: true,
+      code: coupon.redemption_code ?? undefined,
+      couponName: coupon.coupon_definition?.name,
+      usesLeft: leftNow,
+      usageLimit: limitNow,
+    };
   }
   if (coupon.status !== "available") return { ok: false, error: "This coupon can't be revealed." };
 
@@ -135,7 +146,13 @@ export async function revealCoupon(
     detail: { coupon_number: coupon.coupon_number },
   });
 
-  return { ok: true, code };
+  return {
+    ok: true,
+    code,
+    couponName: coupon.coupon_definition?.name,
+    usesLeft: leftNow,
+    usageLimit: limitNow,
+  };
 }
 
 export interface TransferResult {
