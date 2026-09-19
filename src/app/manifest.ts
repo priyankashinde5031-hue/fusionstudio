@@ -1,0 +1,20 @@
+import type { MetadataRoute } from "next";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "Fusion Studio",
+    short_name: "Fusion",
+    description: "Your Fusion Studio membership, benefits and coupons.",
+    start_url: "/app",
+    scope: "/",
+    display: "standalone",
+    orientation: "portrait",
+    background_color: "#0b0b0d",
+    theme_color: "#0b0b0d",
+    icons: [
+      { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
+  };
+}

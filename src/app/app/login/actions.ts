@@ -8,6 +8,7 @@ import { pinSchema } from "@/lib/validation";
 import { createMemberSession, clearMemberSession } from "@/lib/auth/member-session";
 import { getVerificationProvider } from "@/lib/auth/verification";
 import { audit } from "@/lib/audit";
+import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { Member } from "@/lib/db/types";
 
 export type Step = "mobile" | "pin" | "verify" | "setpin";
@@ -162,6 +163,14 @@ export async function loginStep(
   formData: FormData,
 ): Promise<LoginState> {
   const intent = String(formData.get("_intent") ?? "");
+
+  // Rate-limit the sensitive steps (mobile lookup, PIN attempts, verification).
+  if (intent === "pin" || intent === "lookup" || intent === "verify") {
+    const limit = rateLimit(await clientKey(`member-${intent}`), 15, 5 * 60 * 1000);
+    if (!limit.ok) {
+      return { ...prev, error: `Too many attempts. Try again in ${limit.retryAfterSec}s.` };
+    }
+  }
   switch (intent) {
     case "lookup":
       return lookupMember(prev, formData);

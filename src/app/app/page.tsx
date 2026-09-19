@@ -3,7 +3,7 @@ import { requireMember } from "@/lib/auth/member";
 import { db } from "@/lib/supabase/admin";
 import { formatDate, formatDateTime, formatMobile, nowMs } from "@/lib/format";
 import { TIER_THEMES } from "@/lib/themes";
-import { MembershipCardMini } from "@/components/MembershipCardMini";
+import { MembershipCardHero } from "@/components/app/MembershipCardHero";
 import { RevealButton } from "@/components/app/RevealButton";
 import { TransferButton } from "@/components/app/TransferButton";
 import { RevealedCouponCard } from "@/components/app/RevealedCouponCard";
@@ -117,12 +117,13 @@ export default async function CustomerHome() {
         {/* Card / guest state */}
         {activeCard && activeCard.membership_type ? (
           <section className="flex flex-col items-center gap-3">
-            <MembershipCardMini
+            <MembershipCardHero
               theme={activeCard.membership_type.theme}
               tierName={activeCard.membership_type.name}
               memberName={member.name}
               membershipNumber={activeCard.membership_number}
               validUntil={activeCard.valid_until}
+              benefits={benefits.map((b) => b.text)}
             />
             <div className="text-xs" style={{ color: "var(--color-faint)" }}>
               {TIER_THEMES[activeCard.membership_type.theme].label} · valid till{" "}

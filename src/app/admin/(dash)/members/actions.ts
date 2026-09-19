@@ -68,6 +68,34 @@ export async function createMember(
   redirect(`/admin/members/${created.id}`);
 }
 
+/** Edit a member's display name (e.g. name an unnamed guest). */
+export async function updateMemberName(
+  memberId: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const admin = await requireAdmin();
+  const name = String(formData.get("name") ?? "").trim().slice(0, 80);
+
+  const { error } = await db()
+    .from("members")
+    .update({ name: name || null })
+    .eq("id", memberId);
+  if (error) return { error: error.message };
+
+  await audit({
+    adminId: admin.adminId,
+    action: "member.rename",
+    entityType: "member",
+    entityId: memberId,
+    detail: { name: name || null },
+  });
+
+  revalidatePath(`/admin/members/${memberId}`);
+  revalidatePath("/admin/members");
+  return { ok: "Saved." };
+}
+
 /** Force the member through mobile verification + new PIN on next login (§4). */
 export async function resetMemberPin(memberId: string): Promise<void> {
   const admin = await requireAdmin();

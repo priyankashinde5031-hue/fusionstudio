@@ -6,6 +6,7 @@ import { db } from "@/lib/supabase/admin";
 import { adminLoginSchema } from "@/lib/validation";
 import { createAdminSession, clearAdminSession } from "@/lib/auth/session";
 import { audit } from "@/lib/audit";
+import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 export interface LoginState {
   error?: string;
@@ -15,6 +16,11 @@ export async function loginAction(
   _prev: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
+  const limit = rateLimit(await clientKey("admin-login"), 10, 5 * 60 * 1000);
+  if (!limit.ok) {
+    return { error: `Too many attempts. Try again in ${limit.retryAfterSec}s.` };
+  }
+
   const parsed = adminLoginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),

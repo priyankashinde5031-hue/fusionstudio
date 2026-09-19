@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline · Fusion Studio</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: #0b0b0d;
+        color: #f4f1ea;
+        font-family: system-ui, -apple-system, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+      }
+      .wm { font-family: Georgia, serif; font-size: 1.8rem; letter-spacing: 0.02em; }
+      .wm span { color: #d9b36c; }
+      p { color: #a7a39b; font-size: 0.95rem; max-width: 20rem; }
+      button {
+        margin-top: 1.25rem; height: 44px; padding: 0 1.25rem; border-radius: 11px;
+        border: 1px solid #b08d47; cursor: pointer; font-weight: 600;
+        background: linear-gradient(180deg, #f0d191, #d9b36c); color: #241c0c;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <div class="wm">Fusion<span>Studio</span></div>
+      <p>You're offline. Reconnect to see your card and coupons.</p>
+      <button onclick="location.reload()">Try again</button>
+    </div>
+  </body>
+</html>

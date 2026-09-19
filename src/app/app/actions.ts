@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getMemberSession } from "@/lib/auth/member-session";
 import { revealCoupon, hideCoupon, transferCoupon } from "@/lib/coupons";
+import { rateLimit, clientKey } from "@/lib/rate-limit";
 
 export interface RevealState {
   error?: string;
@@ -16,6 +17,9 @@ export async function revealCouponAction(
   void formData; // required by the useActionState signature; unused here
   const session = await getMemberSession();
   if (!session) return { error: "Please sign in again." };
+
+  const limit = rateLimit(await clientKey(`reveal:${session.memberId}`), 20, 60 * 1000);
+  if (!limit.ok) return { error: `Slow down — try again in ${limit.retryAfterSec}s.` };
 
   const result = await revealCoupon(session.memberId, assignedCouponId);
   if (!result.ok) return { error: result.error ?? "Could not reveal." };

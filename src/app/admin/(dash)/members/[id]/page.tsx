@@ -8,6 +8,7 @@ import { MembershipCardMini } from "@/components/MembershipCardMini";
 import { AssignCardForm, AssignCouponForm } from "@/components/admin/AssignForms";
 import { RedeemForm } from "@/components/admin/RedeemForm";
 import { UnassignButton } from "@/components/admin/UnassignButton";
+import { EditMemberName } from "@/components/admin/EditMemberName";
 import { revalidateCoupons } from "@/lib/coupons";
 import {
   assignCardAction,
@@ -16,6 +17,7 @@ import {
   resetMemberPin,
   redeemCouponAction,
   unassignCouponAction,
+  updateMemberName,
 } from "../actions";
 import type {
   Member,
@@ -112,8 +114,8 @@ export default async function MemberDetailPage({
           <Link href="/admin/members" className="text-sm" style={{ color: "var(--color-muted)" }}>
             ← Members
           </Link>
-          <div className="flex items-center gap-3 mt-2">
-            <h1 className="display text-4xl">{member.name ?? "Unnamed member"}</h1>
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <EditMemberName action={updateMemberName.bind(null, id)} initialName={member.name} />
             <span className={member.is_loyalty ? "chip chip-gold" : "chip chip-muted"}>
               {member.is_loyalty ? "Loyalty" : "Guest"}
             </span>
