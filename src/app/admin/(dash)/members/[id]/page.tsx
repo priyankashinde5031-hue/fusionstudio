@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/admin";
 import { db } from "@/lib/supabase/admin";
-import { formatMobile, formatDate, nowMs } from "@/lib/format";
+import { formatMobile, formatDate, formatDateTime, nowMs } from "@/lib/format";
 import { TIER_THEMES } from "@/lib/themes";
 import { MembershipCardMini } from "@/components/MembershipCardMini";
 import { AssignCardForm, AssignCouponForm } from "@/components/admin/AssignForms";
@@ -92,6 +92,14 @@ export default async function MemberDetailPage({
   const boundResetPin = resetMemberPin.bind(null, id);
   const boundRedeem = redeemCouponAction.bind(null, id);
   const hasRevealed = coupons.some((c) => c.status === "revealed");
+
+  // Active coupons first, historical (used/expired) at the bottom.
+  const STATUS_RANK: Record<string, number> = { revealed: 0, available: 1, redeemed: 2, expired: 3 };
+  const sortedCoupons = [...coupons].sort(
+    (a, b) =>
+      (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9) ||
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
 
   return (
     <div>
@@ -198,11 +206,14 @@ export default async function MemberDetailPage({
             </div>
           ) : (
             <div className="panel overflow-hidden">
-              {coupons.map((c, i) => (
+              {sortedCoupons.map((c, i) => (
                 <div
                   key={c.id}
                   className="flex items-center gap-3 px-4 py-3"
-                  style={{ borderTop: i === 0 ? "none" : "1px solid var(--color-hairline)" }}
+                  style={{
+                    borderTop: i === 0 ? "none" : "1px solid var(--color-hairline)",
+                    opacity: c.status === "redeemed" || c.status === "expired" ? 0.65 : 1,
+                  }}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-sm truncate">
@@ -211,6 +222,11 @@ export default async function MemberDetailPage({
                     <div className="mono text-xs truncate" style={{ color: "var(--color-faint)" }}>
                       {c.coupon_number}
                     </div>
+                    {c.status === "redeemed" && c.redeemed_at && (
+                      <div className="text-xs mt-0.5" style={{ color: "var(--color-faint)" }}>
+                        Used {formatDateTime(c.redeemed_at)}
+                      </div>
+                    )}
                   </div>
                   <span className={COUPON_CHIP[c.status] ?? "chip"}>{c.status}</span>
                 </div>

@@ -36,8 +36,8 @@ export function AssignCardForm({
     );
   }
   return (
-    <form action={formAction} className="flex flex-col sm:flex-row gap-3 sm:items-end">
-      <div className="flex-1">
+    <form action={formAction} className="flex flex-col gap-3">
+      <div>
         <label className="label" htmlFor="membership_type_id">
           Membership type
         </label>
@@ -49,12 +49,10 @@ export function AssignCardForm({
           ))}
         </select>
       </div>
-      <SubmitButton className="btn btn-gold" pendingText="Issuing…">
+      <SubmitButton className="btn btn-gold w-full" pendingText="Issuing…">
         Issue card
       </SubmitButton>
-      <div className="sm:w-full sm:basis-full">
-        <Feedback state={state} />
-      </div>
+      <Feedback state={state} />
     </form>
   );
 }
@@ -75,8 +73,8 @@ export function AssignCouponForm({
     );
   }
   return (
-    <form action={formAction} className="flex flex-col sm:flex-row gap-3 sm:items-end">
-      <div className="flex-1">
+    <form action={formAction} className="flex flex-col gap-3">
+      <div>
         <label className="label" htmlFor="coupon_definition_id">
           Coupon
         </label>
@@ -88,12 +86,10 @@ export function AssignCouponForm({
           ))}
         </select>
       </div>
-      <SubmitButton className="btn btn-ghost" pendingText="Assigning…">
+      <SubmitButton className="btn btn-ghost w-full" pendingText="Assigning…">
         Assign coupon
       </SubmitButton>
-      <div className="sm:w-full sm:basis-full">
-        <Feedback state={state} />
-      </div>
+      <Feedback state={state} />
     </form>
   );
 }

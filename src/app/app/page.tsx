@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireMember } from "@/lib/auth/member";
 import { db } from "@/lib/supabase/admin";
-import { formatDate, formatMobile, nowMs } from "@/lib/format";
+import { formatDate, formatDateTime, formatMobile, nowMs } from "@/lib/format";
 import { TIER_THEMES } from "@/lib/themes";
 import { MembershipCardMini } from "@/components/MembershipCardMini";
 import { RevealButton } from "@/components/app/RevealButton";
@@ -220,6 +220,11 @@ export default async function CustomerHome() {
                                 <span>{c.coupon_number}</span>
                                 <span style={{ color: "var(--color-hairline-strong)" }}>·</span>
                                 <span>exp {formatDate(c.coupon_definition.valid_until)}</span>
+                              </div>
+                            )}
+                            {c.status === "redeemed" && c.redeemed_at && (
+                              <div className="mt-1 text-xs" style={{ color: "var(--color-faint)" }}>
+                                Used {formatDateTime(c.redeemed_at)}
                               </div>
                             )}
                           </div>
