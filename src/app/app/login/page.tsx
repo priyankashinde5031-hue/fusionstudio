@@ -69,27 +69,63 @@ export default function CustomerLoginPage() {
         </form>
       )}
 
-      {/* STEP: verify (method A) */}
-      {state.step === "verify" && (
-        <form action={formAction} className="panel p-6 flex flex-col gap-4">
-          <input type="hidden" name="_intent" value="verify" />
-          <input type="hidden" name="mobile" value={state.mobile ?? ""} />
+      {/* STEP: OTP */}
+      {state.step === "otp" && (
+        <div className="panel p-6 flex flex-col gap-4">
           <h1 className="display text-2xl">{greeting}</h1>
           <p className="text-sm -mt-1" style={{ color: "var(--color-muted)" }}>
-            Let&apos;s verify <span className="mono">{state.mobile}</span> is yours. One tap
-            via WhatsApp / Truecaller — no code to type.
+            Enter the 6-digit code we sent on WhatsApp to{" "}
+            <span className="mono">{state.mobile}</span>.
           </p>
-          <div
-            className="text-xs rounded-lg px-3 py-2"
-            style={{ background: "var(--color-gold-soft)", color: "var(--color-gold-bright)" }}
-          >
-            Dev mode: verification auto-passes.
-          </div>
-          <ErrorNote error={state.error} />
-          <SubmitButton className="btn btn-gold w-full" pendingText="Verifying…">
-            Verify my number
-          </SubmitButton>
-        </form>
+
+          {state.devCode && (
+            <div
+              className="text-xs rounded-lg px-3 py-2"
+              style={{ background: "var(--color-gold-soft)", color: "var(--color-gold-bright)" }}
+            >
+              Dev mode — your code is <span className="mono font-bold">{state.devCode}</span>
+            </div>
+          )}
+          {state.info && (
+            <p className="text-xs" style={{ color: "var(--color-success)" }}>
+              {state.info}
+            </p>
+          )}
+
+          <form action={formAction} className="flex flex-col gap-4">
+            <input type="hidden" name="_intent" value="otp" />
+            <input type="hidden" name="mobile" value={state.mobile ?? ""} />
+            <div>
+              <label className="label" htmlFor="code">
+                Verification code
+              </label>
+              <input
+                id="code"
+                name="code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                maxLength={6}
+                className="input mono"
+                style={{ letterSpacing: "0.35em", fontSize: "1.1rem" }}
+                placeholder="000000"
+                autoFocus
+              />
+            </div>
+            <ErrorNote error={state.error} />
+            <SubmitButton className="btn btn-gold w-full" pendingText="Verifying…">
+              Verify
+            </SubmitButton>
+          </form>
+
+          <form action={formAction} className="text-center">
+            <input type="hidden" name="_intent" value="resend" />
+            <input type="hidden" name="mobile" value={state.mobile ?? ""} />
+            <button type="submit" className="text-xs" style={{ color: "var(--color-muted)" }}>
+              Didn&apos;t get it? <span style={{ color: "var(--color-gold)" }}>Resend code</span>
+            </button>
+          </form>
+        </div>
       )}
 
       {/* STEP: set PIN */}

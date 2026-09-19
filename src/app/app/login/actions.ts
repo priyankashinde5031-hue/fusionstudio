@@ -6,18 +6,21 @@ import { db } from "@/lib/supabase/admin";
 import { normalizeMobile } from "@/lib/format";
 import { pinSchema } from "@/lib/validation";
 import { createMemberSession, clearMemberSession } from "@/lib/auth/member-session";
-import { getVerificationProvider } from "@/lib/auth/verification";
+import { sendOtp, verifyOtp } from "@/lib/auth/otp-service";
 import { audit } from "@/lib/audit";
 import { rateLimit, clientKey } from "@/lib/rate-limit";
 import type { Member } from "@/lib/db/types";
 
-export type Step = "mobile" | "pin" | "verify" | "setpin";
+export type Step = "mobile" | "pin" | "otp" | "setpin";
 
 export interface LoginState {
   step: Step;
   mobile?: string;
   memberName?: string | null;
   error?: string;
+  info?: string;
+  /** Dev-only: the OTP code, shown on screen while using the stub sender. */
+  devCode?: string;
 }
 
 async function findActiveMember(mobile: string): Promise<Member | null> {
@@ -34,7 +37,16 @@ function needsVerification(m: Member): boolean {
   return !m.pin_hash || m.pin_reset_required || !m.mobile_verified_at;
 }
 
-/** Step 1 — mobile entry. Decides whether to ask for a PIN or verify first. */
+/** Send an OTP and return the "otp" step state (with a dev code when stubbed). */
+async function startOtp(mobile: string, member: Member, info?: string): Promise<LoginState> {
+  const res = await sendOtp(mobile);
+  if (!res.ok) {
+    return { step: "mobile", mobile, error: res.error ?? "Could not send the code." };
+  }
+  return { step: "otp", mobile, memberName: member.name, info, devCode: res.devCode };
+}
+
+/** Step 1 — mobile entry. Sends an OTP if verification is needed, else asks for PIN. */
 export async function lookupMember(
   _prev: LoginState,
   formData: FormData,
@@ -54,13 +66,13 @@ export async function lookupMember(
   }
 
   if (needsVerification(member)) {
-    return { step: "verify", mobile, memberName: member.name };
+    return startOtp(mobile, member);
   }
   return { step: "pin", mobile, memberName: member.name };
 }
 
-/** Step 2a — method A verification (stub auto-passes in dev). */
-export async function verifyMember(
+/** Step 2a — verify the OTP the customer received on WhatsApp. */
+export async function verifyOtpStep(
   _prev: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
@@ -70,24 +82,27 @@ export async function verifyMember(
   const member = await findActiveMember(mobile);
   if (!member) return { step: "mobile", error: "No account found for this number." };
 
-  const provider = getVerificationProvider();
-  const started = await provider.startVerification(mobile);
-  if (!started.ok) {
-    return { step: "verify", mobile, memberName: member.name, error: started.error ?? "Verification failed." };
-  }
-  const confirmed = await provider.confirmVerification(mobile);
-  if (!confirmed.ok) {
-    return { step: "verify", mobile, memberName: member.name, error: confirmed.error ?? "Verification failed." };
+  const result = await verifyOtp(mobile, String(formData.get("code") ?? ""));
+  if (!result.ok) {
+    return { step: "otp", mobile, memberName: member.name, error: result.error };
   }
 
   await db()
     .from("members")
     .update({ mobile_verified_at: new Date().toISOString(), pin_reset_required: false })
     .eq("id", member.id);
-
   await audit({ memberId: member.id, action: "member.verify", entityType: "member", entityId: member.id });
 
   return { step: "setpin", mobile, memberName: member.name };
+}
+
+/** Resend a fresh OTP. */
+export async function resendOtp(_prev: LoginState, formData: FormData): Promise<LoginState> {
+  const mobile = normalizeMobile(String(formData.get("mobile") ?? ""));
+  if (!mobile) return { step: "mobile", error: "Something went wrong. Start again." };
+  const member = await findActiveMember(mobile);
+  if (!member) return { step: "mobile", error: "No account found for this number." };
+  return startOtp(mobile, member, "A new code is on its way.");
 }
 
 /** Step 2b — set a new PIN (after verification), then sign in. */
@@ -111,7 +126,7 @@ export async function setMemberPin(
   const member = await findActiveMember(mobile);
   if (!member) return { step: "mobile", error: "No account found for this number." };
   if (!member.mobile_verified_at) {
-    return { step: "verify", mobile, memberName: member.name, error: "Please verify your number first." };
+    return startOtp(mobile, member, "Please verify your number first.");
   }
 
   const pin_hash = await bcrypt.hash(pin, 10);
@@ -137,9 +152,9 @@ export async function loginWithPin(
   const member = await findActiveMember(mobile);
   if (!member) return { step: "mobile", error: "No account found for this number." };
 
-  // If they need (re)verification, route them there instead.
+  // If they need (re)verification, send an OTP and route them there.
   if (needsVerification(member)) {
-    return { step: "verify", mobile, memberName: member.name };
+    return startOtp(mobile, member);
   }
 
   const ok = await bcrypt.compare(pin, member.pin_hash ?? "");
@@ -164,18 +179,27 @@ export async function loginStep(
 ): Promise<LoginState> {
   const intent = String(formData.get("_intent") ?? "");
 
-  // Rate-limit the sensitive steps (mobile lookup, PIN attempts, verification).
-  if (intent === "pin" || intent === "lookup" || intent === "verify") {
+  // Rate-limit sensitive steps. OTP sends are limited harder than PIN entry.
+  if (intent === "lookup" || intent === "resend") {
+    const limit = rateLimit(await clientKey(`otp-send`), 5, 10 * 60 * 1000);
+    if (!limit.ok) {
+      return { ...prev, error: `Too many code requests. Try again in ${limit.retryAfterSec}s.` };
+    }
+  }
+  if (intent === "pin" || intent === "otp") {
     const limit = rateLimit(await clientKey(`member-${intent}`), 15, 5 * 60 * 1000);
     if (!limit.ok) {
       return { ...prev, error: `Too many attempts. Try again in ${limit.retryAfterSec}s.` };
     }
   }
+
   switch (intent) {
     case "lookup":
       return lookupMember(prev, formData);
-    case "verify":
-      return verifyMember(prev, formData);
+    case "otp":
+      return verifyOtpStep(prev, formData);
+    case "resend":
+      return resendOtp(prev, formData);
     case "setpin":
       return setMemberPin(prev, formData);
     case "pin":
