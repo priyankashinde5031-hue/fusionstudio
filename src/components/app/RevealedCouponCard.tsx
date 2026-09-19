@@ -1,48 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-
-function format(ms: number): string {
-  if (ms <= 0) return "00:00:00";
-  const s = Math.floor(ms / 1000);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(h)}:${pad(m)}:${pad(sec)}`;
-}
+import { useState } from "react";
 
 export function RevealedCouponCard({
   name,
   description,
   couponNumber,
   code,
-  expiresAt,
 }: {
   name: string;
   description: string;
   couponNumber: string;
   code: string;
-  expiresAt: string;
 }) {
-  const router = useRouter();
-  const expiry = new Date(expiresAt).getTime();
-  const [remaining, setRemaining] = useState(() => expiry - Date.now());
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      const left = expiry - Date.now();
-      setRemaining(left);
-      if (left <= 0) {
-        clearInterval(id);
-        // Window lapsed — refresh so the server moves it back to Available.
-        router.refresh();
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [expiry, router]);
 
   async function copy() {
     try {
@@ -53,8 +24,6 @@ export function RevealedCouponCard({
       /* clipboard blocked — user can read the code */
     }
   }
-
-  const urgent = remaining < 60 * 60 * 1000; // under 1h
 
   return (
     <div
@@ -90,14 +59,8 @@ export function RevealedCouponCard({
         </div>
       </button>
 
-      <div className="mt-3 flex items-center justify-between text-sm">
-        <span style={{ color: "var(--color-muted)" }}>Show at the counter within</span>
-        <span
-          className="mono font-semibold"
-          style={{ color: urgent ? "var(--color-danger)" : "var(--color-fg)" }}
-        >
-          {format(remaining)}
-        </span>
+      <div className="mt-3 text-sm" style={{ color: "var(--color-muted)" }}>
+        Show this code at the counter.
       </div>
       <div className="mt-2 text-xs mono" style={{ color: "var(--color-faint)" }}>
         {couponNumber}

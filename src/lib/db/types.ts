@@ -82,7 +82,6 @@ export interface AssignedCoupon {
   status: CouponStatus;
   redemption_code: string | null;
   revealed_at: string | null;
-  code_expires_at: string | null;
   redeemed_at: string | null;
   redeemed_by_admin_id: string | null;
   source: "admin" | "default" | "transfer";

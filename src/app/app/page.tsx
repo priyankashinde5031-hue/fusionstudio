@@ -181,8 +181,8 @@ export default async function CustomerHome() {
                     </div>
                     <div className="flex flex-col gap-2.5">
                       {items.map((c) => {
-                        // Active (revealed) coupons show the code + live countdown.
-                        if (g.key === "revealed" && c.redemption_code && c.code_expires_at) {
+                        // Active (revealed) coupons show the code to present at the counter.
+                        if (g.key === "revealed" && c.redemption_code) {
                           return (
                             <RevealedCouponCard
                               key={c.id}
@@ -190,7 +190,6 @@ export default async function CustomerHome() {
                               description={c.coupon_definition?.description ?? ""}
                               couponNumber={c.coupon_number}
                               code={c.redemption_code}
-                              expiresAt={c.code_expires_at}
                             />
                           );
                         }

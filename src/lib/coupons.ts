@@ -5,23 +5,21 @@ import { generateCode, normalizeCode } from "@/lib/coupon-code";
 import { audit } from "@/lib/audit";
 import type { AssignedCoupon, CouponDefinition } from "@/lib/db/types";
 
-const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
-
 type RowWithDef = AssignedCoupon & {
   coupon_definition: Pick<CouponDefinition, "valid_from" | "valid_until"> | null;
 };
 
 /**
- * Recompute coupon states (§7). Flips lapsed reveals back to `available`
- * (clearing the code) and past-expiry coupons to `expired`. Runs from the
- * cron job (all coupons) and lazily on read (scoped to one member).
+ * Recompute coupon states (§7). Flips coupons whose definition has passed its
+ * expiry to `expired`. (There is no 24-hour reveal window — a revealed coupon
+ * keeps its code until redeemed.) Runs lazily on read.
  * Returns the number of coupons changed.
  */
 export async function revalidateCoupons(opts: { memberId?: string } = {}): Promise<number> {
   const supabase = db();
   let query = supabase
     .from("assigned_coupons")
-    .select("id, status, code_expires_at, coupon_definition:coupon_definitions(valid_until)")
+    .select("id, status, coupon_definition:coupon_definitions(valid_until)")
     .in("status", ["available", "revealed"]);
   if (opts.memberId) query = query.eq("member_id", opts.memberId);
 
@@ -38,21 +36,7 @@ export async function revalidateCoupons(opts: { memberId?: string } = {}): Promi
     if (defExpired) {
       await supabase
         .from("assigned_coupons")
-        .update({ status: "expired", redemption_code: null, revealed_at: null, code_expires_at: null })
-        .eq("id", r.id);
-      changed += 1;
-      continue;
-    }
-
-    if (
-      r.status === "revealed" &&
-      r.code_expires_at != null &&
-      new Date(r.code_expires_at).getTime() < now
-    ) {
-      // Reveal window lapsed with no redemption → back to available.
-      await supabase
-        .from("assigned_coupons")
-        .update({ status: "available", redemption_code: null, revealed_at: null, code_expires_at: null })
+        .update({ status: "expired", redemption_code: null, revealed_at: null })
         .eq("id", r.id);
       changed += 1;
     }
@@ -72,18 +56,16 @@ async function generateUniqueRevealCode(): Promise<string> {
       .maybeSingle();
     if (!data) return code;
   }
-  // Extremely unlikely; fall back to a longer code.
   return generateCode(8);
 }
 
 export interface RevealResult {
   ok: boolean;
   code?: string;
-  expiresAt?: string;
   error?: string;
 }
 
-/** Member reveals an available coupon → fresh code + 24h window (§7). */
+/** Member reveals an available coupon → a code that stays valid until redeemed. */
 export async function revealCoupon(
   memberId: string,
   assignedCouponId: string,
@@ -99,7 +81,7 @@ export async function revealCoupon(
   if (!member || member.deactivated_at) return { ok: false, error: "Account unavailable." };
   if (!member.mobile_verified_at) return { ok: false, error: "Verify your number first." };
 
-  // Fix any stale state on this member's coupons first.
+  // Fix any stale (expired) state on this member's coupons first.
   await revalidateCoupons({ memberId });
 
   const { data: row } = await supabase
@@ -115,8 +97,8 @@ export async function revealCoupon(
 
   if (coupon.status === "redeemed") return { ok: false, error: "This coupon is already used." };
   if (coupon.status === "revealed") {
-    // Already revealed and still valid — just return the existing code.
-    return { ok: true, code: coupon.redemption_code ?? undefined, expiresAt: coupon.code_expires_at ?? undefined };
+    // Already revealed — just return the existing code.
+    return { ok: true, code: coupon.redemption_code ?? undefined };
   }
   if (coupon.status !== "available") return { ok: false, error: "This coupon can't be revealed." };
 
@@ -128,7 +110,6 @@ export async function revealCoupon(
     return { ok: false, error: "This coupon has expired." };
 
   const code = await generateUniqueRevealCode();
-  const expiresAt = new Date(now + WINDOW_MS).toISOString();
 
   const { error } = await supabase
     .from("assigned_coupons")
@@ -136,7 +117,6 @@ export async function revealCoupon(
       status: "revealed",
       redemption_code: code,
       revealed_at: new Date(now).toISOString(),
-      code_expires_at: expiresAt,
     })
     .eq("id", assignedCouponId)
     .eq("member_id", memberId)
@@ -152,7 +132,7 @@ export async function revealCoupon(
     detail: { coupon_number: coupon.coupon_number },
   });
 
-  return { ok: true, code, expiresAt };
+  return { ok: true, code };
 }
 
 export interface RedeemResult {
@@ -172,7 +152,7 @@ export async function redeemByCode(
   const code = normalizeCode(rawCode);
   if (!code) return { ok: false, error: "Enter the code the customer is showing." };
 
-  // Clear any lapsed reveals so an expired code can't be matched.
+  // Fix any expired coupons first so an expired coupon's code can't be matched.
   await revalidateCoupons({ memberId });
 
   const { data: row } = await supabase
@@ -183,15 +163,7 @@ export async function redeemByCode(
     .maybeSingle();
 
   if (!row) {
-    // Distinguish an already-used code for a clearer message.
-    const { data: used } = await supabase
-      .from("assigned_coupons")
-      .select("id")
-      .eq("member_id", memberId)
-      .eq("status", "redeemed")
-      .limit(1);
-    void used;
-    return { ok: false, error: "Invalid or expired code. Ask the customer to reveal again." };
+    return { ok: false, error: "Invalid code. Ask the customer to reveal the coupon in their app." };
   }
 
   const coupon = row as unknown as AssignedCoupon & { coupon_definition: CouponDefinition | null };
@@ -200,8 +172,6 @@ export async function redeemByCode(
   if (coupon.status !== "revealed") return { ok: false, error: "This code is no longer active." };
 
   const now = nowMs();
-  if (coupon.code_expires_at && new Date(coupon.code_expires_at).getTime() < now)
-    return { ok: false, error: "The 24-hour window has passed. Ask the customer to reveal again." };
   if (coupon.coupon_definition && new Date(coupon.coupon_definition.valid_until).getTime() < now)
     return { ok: false, error: "This coupon has expired." };
 
