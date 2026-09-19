@@ -25,12 +25,16 @@ export function RevealedCouponCard({
   description,
   couponNumber,
   code,
+  usesLeft,
+  usageLimit,
 }: {
   couponId: string;
   name: string;
   description: string;
   couponNumber: string;
   code: string;
+  usesLeft?: number;
+  usageLimit?: number;
 }) {
   const [copied, setCopied] = useState(false);
   const hide = hideCouponAction.bind(null, couponId);
@@ -60,6 +64,11 @@ export function RevealedCouponCard({
         </div>
         <span className="chip chip-gold">Active</span>
       </div>
+      {usageLimit && usageLimit > 1 && typeof usesLeft === "number" && (
+        <div className="text-xs mb-2" style={{ color: "var(--color-muted)" }}>
+          Punch card · {usesLeft} of {usageLimit} use{usageLimit === 1 ? "" : "s"} left
+        </div>
+      )}
 
       {/* The code */}
       <button

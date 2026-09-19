@@ -118,11 +118,33 @@ export default async function CustomerHome() {
     return mobile ? { mobile, at: r.at } : undefined;
   }
 
-  const available = coupons.filter((c) => c.status === "available");
-  const revealed = coupons.filter((c) => c.status === "revealed" && c.redemption_code);
+  // Effective, customer-facing state. A coupon is only usable when its
+  // definition is active AND within its validity window; otherwise it reads as
+  // "expired/unavailable" (non-destructive — reactivating restores it).
+  function effState(c: CouponWithDef): "used" | "expired" | "active" | "available" {
+    if (c.status === "redeemed") return "used";
+    const def = c.coupon_definition;
+    const past = !def || !def.is_active || new Date(def.valid_until).getTime() < now;
+    if (c.status === "expired" || past) return "expired";
+    if (c.status === "revealed" && c.redemption_code) return "active";
+    return "available";
+  }
+  function usesLeftOf(c: CouponWithDef): { left: number; limit: number } {
+    const limit = c.coupon_definition?.usage_limit ?? 1;
+    return { left: Math.max(limit - c.uses_count, 0), limit };
+  }
+
+  // Available + Active in one list (kept in place so revealing doesn't "move" it).
+  const current = coupons.filter((c) => {
+    const s = effState(c);
+    return s === "available" || s === "active";
+  });
 
   const usedItems: UsedItem[] = coupons
-    .filter((c) => c.status === "redeemed" || c.status === "expired")
+    .filter((c) => {
+      const s = effState(c);
+      return s === "used" || s === "expired";
+    })
     .map((c) => {
       const rec = receivedInfo(c.id);
       return {
@@ -130,7 +152,7 @@ export default async function CustomerHome() {
         name: c.coupon_definition?.name ?? "Coupon",
         description: c.coupon_definition?.description ?? "",
         couponNumber: c.coupon_number,
-        status: c.status as "redeemed" | "expired",
+        status: effState(c) === "used" ? "redeemed" : "expired",
         redeemedAt: c.redeemed_at,
         expUntil: c.coupon_definition?.valid_until ?? c.created_at,
         receivedFromMobile: rec?.mobile,
@@ -251,10 +273,10 @@ export default async function CustomerHome() {
           <span style={{ color: "var(--color-gold)", fontSize: "1.1rem", lineHeight: 1 }}>⌄</span>
         </div>
 
-        {/* Available coupons */}
+        {/* Available + Active in one place — revealing expands the card in situ */}
         <section>
-          <div className="eyebrow mb-3">Available ({available.length})</div>
-          {available.length === 0 ? (
+          <div className="eyebrow mb-3">Available ({current.length})</div>
+          {current.length === 0 ? (
             <div className="panel p-6 text-center">
               <p className="text-sm" style={{ color: "var(--color-muted)" }}>
                 No available coupons right now.
@@ -262,7 +284,23 @@ export default async function CustomerHome() {
             </div>
           ) : (
             <div className="flex flex-col gap-2.5">
-              {available.map((c) => {
+              {current.map((c) => {
+                const { left, limit } = usesLeftOf(c);
+                // Revealed → show the code inline, in the same position.
+                if (effState(c) === "active") {
+                  return (
+                    <RevealedCouponCard
+                      key={c.id}
+                      couponId={c.id}
+                      name={c.coupon_definition?.name ?? "Coupon"}
+                      description={c.coupon_definition?.description ?? ""}
+                      couponNumber={c.coupon_number}
+                      code={c.redemption_code!}
+                      usesLeft={left}
+                      usageLimit={limit}
+                    />
+                  );
+                }
                 const rec = receivedInfo(c.id);
                 return (
                   <div key={c.id} className="panel p-4">
@@ -274,6 +312,11 @@ export default async function CustomerHome() {
                         {c.coupon_definition?.description}
                       </div>
                     </div>
+                    {limit > 1 && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 chip chip-gold">
+                        {left} of {limit} uses left
+                      </div>
+                    )}
                     <div className="mt-3 flex items-center gap-3 text-xs mono" style={{ color: "var(--color-faint)" }}>
                       <span>{c.coupon_number}</span>
                       {c.coupon_definition && (
@@ -298,25 +341,6 @@ export default async function CustomerHome() {
             </div>
           )}
         </section>
-
-        {/* Active (revealed) coupons */}
-        {revealed.length > 0 && (
-          <section>
-            <div className="eyebrow mb-3">Active — show at counter ({revealed.length})</div>
-            <div className="flex flex-col gap-2.5">
-              {revealed.map((c) => (
-                <RevealedCouponCard
-                  key={c.id}
-                  couponId={c.id}
-                  name={c.coupon_definition?.name ?? "Coupon"}
-                  description={c.coupon_definition?.description ?? ""}
-                  couponNumber={c.coupon_number}
-                  code={c.redemption_code!}
-                />
-              ))}
-            </div>
-          </section>
-        )}
 
         {/* History: Used / Transferred tabs */}
         <section>
