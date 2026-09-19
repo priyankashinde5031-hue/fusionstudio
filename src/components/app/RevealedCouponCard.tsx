@@ -1,19 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
+import { useFormStatus } from "react-dom";
+import { hideCouponAction, type RevealState } from "@/app/app/actions";
+
+function HideButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      className="text-xs px-2.5 py-1.5 rounded-lg"
+      style={{ color: "var(--color-muted)", border: "1px solid var(--color-hairline)" }}
+      disabled={pending}
+      aria-busy={pending}
+    >
+      {pending ? "Hiding…" : "Hide code"}
+    </button>
+  );
+}
 
 export function RevealedCouponCard({
+  couponId,
   name,
   description,
   couponNumber,
   code,
 }: {
+  couponId: string;
   name: string;
   description: string;
   couponNumber: string;
   code: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const hide = hideCouponAction.bind(null, couponId);
+  const [hideState, hideAction] = useActionState<RevealState, FormData>(hide, {});
 
   async function copy() {
     try {
@@ -59,9 +80,19 @@ export function RevealedCouponCard({
         </div>
       </button>
 
-      <div className="mt-3 text-sm" style={{ color: "var(--color-muted)" }}>
-        Show this code at the counter.
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <span className="text-sm" style={{ color: "var(--color-muted)" }}>
+          Show this code at the counter.
+        </span>
+        <form action={hideAction}>
+          <HideButton />
+        </form>
       </div>
+      {hideState.error && (
+        <div className="mt-1 text-xs" style={{ color: "var(--color-danger)" }}>
+          {hideState.error}
+        </div>
+      )}
       <div className="mt-2 text-xs mono" style={{ color: "var(--color-faint)" }}>
         {couponNumber}
       </div>

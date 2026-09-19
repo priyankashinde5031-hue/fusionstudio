@@ -135,6 +135,41 @@ export async function revealCoupon(
   return { ok: true, code };
 }
 
+/** Member hides a revealed code → coupon returns to available (transferable again). */
+export async function hideCoupon(
+  memberId: string,
+  assignedCouponId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const supabase = db();
+  const { data: row } = await supabase
+    .from("assigned_coupons")
+    .select("id, status")
+    .eq("id", assignedCouponId)
+    .eq("member_id", memberId)
+    .maybeSingle();
+
+  if (!row) return { ok: false, error: "Coupon not found." };
+  if (row.status === "redeemed") return { ok: false, error: "This coupon is already used." };
+  if (row.status !== "revealed") return { ok: true }; // already not revealed — nothing to do
+
+  const { error } = await supabase
+    .from("assigned_coupons")
+    .update({ status: "available", redemption_code: null, revealed_at: null })
+    .eq("id", assignedCouponId)
+    .eq("member_id", memberId)
+    .eq("status", "revealed");
+
+  if (error) return { ok: false, error: "Could not hide the code. Try again." };
+
+  await audit({
+    memberId,
+    action: "coupon.hide",
+    entityType: "assigned_coupon",
+    entityId: assignedCouponId,
+  });
+  return { ok: true };
+}
+
 export interface RedeemResult {
   ok: boolean;
   couponNumber?: string;

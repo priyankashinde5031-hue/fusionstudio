@@ -186,6 +186,7 @@ export default async function CustomerHome() {
                           return (
                             <RevealedCouponCard
                               key={c.id}
+                              couponId={c.id}
                               name={c.coupon_definition?.name ?? "Coupon"}
                               description={c.coupon_definition?.description ?? ""}
                               couponNumber={c.coupon_number}
