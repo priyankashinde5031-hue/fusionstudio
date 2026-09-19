@@ -7,6 +7,7 @@ import { TIER_THEMES } from "@/lib/themes";
 import { MembershipCardMini } from "@/components/MembershipCardMini";
 import { AssignCardForm, AssignCouponForm } from "@/components/admin/AssignForms";
 import { RedeemForm } from "@/components/admin/RedeemForm";
+import { UnassignButton } from "@/components/admin/UnassignButton";
 import { revalidateCoupons } from "@/lib/coupons";
 import {
   assignCardAction,
@@ -14,6 +15,7 @@ import {
   upgradeMember,
   resetMemberPin,
   redeemCouponAction,
+  unassignCouponAction,
 } from "../actions";
 import type {
   Member,
@@ -65,6 +67,7 @@ export default async function MemberDetailPage({
         .from("assigned_coupons")
         .select("*, coupon_definition:coupon_definitions(*)")
         .eq("member_id", id)
+        .is("unassigned_at", null)
         .order("created_at", { ascending: false }),
       supabase.from("membership_types").select("id, name").eq("is_active", true).order("name"),
       supabase.from("coupon_definitions").select("id, name").eq("is_active", true).order("name"),
@@ -194,46 +197,8 @@ export default async function MemberDetailPage({
           )}
         </section>
 
-        {/* Coupons wallet */}
+        {/* Coupons: Redeem → Assign → list */}
         <section className="flex flex-col gap-5">
-          <div className="eyebrow">Coupons ({coupons.length})</div>
-
-          {coupons.length === 0 ? (
-            <div className="panel p-8 text-center">
-              <p className="text-sm" style={{ color: "var(--color-muted)" }}>
-                No coupons yet.
-              </p>
-            </div>
-          ) : (
-            <div className="panel overflow-hidden">
-              {sortedCoupons.map((c, i) => (
-                <div
-                  key={c.id}
-                  className="flex items-center gap-3 px-4 py-3"
-                  style={{
-                    borderTop: i === 0 ? "none" : "1px solid var(--color-hairline)",
-                    opacity: c.status === "redeemed" || c.status === "expired" ? 0.65 : 1,
-                  }}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium text-sm truncate">
-                      {c.coupon_definition?.name ?? "Coupon"}
-                    </div>
-                    <div className="mono text-xs truncate" style={{ color: "var(--color-faint)" }}>
-                      {c.coupon_number}
-                    </div>
-                    {c.status === "redeemed" && c.redeemed_at && (
-                      <div className="text-xs mt-0.5" style={{ color: "var(--color-faint)" }}>
-                        Used {formatDateTime(c.redeemed_at)}
-                      </div>
-                    )}
-                  </div>
-                  <span className={COUPON_CHIP[c.status] ?? "chip"}>{c.status}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
           <div
             className="panel p-5"
             style={
@@ -255,6 +220,51 @@ export default async function MemberDetailPage({
               action={boundAssignCoupon}
               coupons={(couponDefs ?? []) as { id: string; name: string }[]}
             />
+          </div>
+
+          <div>
+            <div className="eyebrow mb-3">Coupons ({coupons.length})</div>
+            {coupons.length === 0 ? (
+              <div className="panel p-8 text-center">
+                <p className="text-sm" style={{ color: "var(--color-muted)" }}>
+                  No coupons yet.
+                </p>
+              </div>
+            ) : (
+              <div className="panel overflow-hidden">
+                {sortedCoupons.map((c, i) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center gap-3 px-4 py-3"
+                    style={{
+                      borderTop: i === 0 ? "none" : "1px solid var(--color-hairline)",
+                      opacity: c.status === "redeemed" || c.status === "expired" ? 0.65 : 1,
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-sm truncate">
+                        {c.coupon_definition?.name ?? "Coupon"}
+                      </div>
+                      <div className="mono text-xs truncate" style={{ color: "var(--color-faint)" }}>
+                        {c.coupon_number}
+                      </div>
+                      {c.status === "redeemed" && c.redeemed_at && (
+                        <div className="text-xs mt-0.5" style={{ color: "var(--color-faint)" }}>
+                          Used {formatDateTime(c.redeemed_at)}
+                        </div>
+                      )}
+                    </div>
+                    <span className={COUPON_CHIP[c.status] ?? "chip"}>{c.status}</span>
+                    {c.status !== "redeemed" && (
+                      <UnassignButton
+                        action={unassignCouponAction.bind(null, id, c.id)}
+                        label={c.coupon_definition?.name ?? c.coupon_number}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </div>

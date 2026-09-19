@@ -56,6 +56,7 @@ export default async function CustomerHome() {
       .from("assigned_coupons")
       .select("*, coupon_definition:coupon_definitions(*)")
       .eq("member_id", member.id)
+      .is("unassigned_at", null)
       .order("created_at", { ascending: false }),
   ]);
 

@@ -85,6 +85,8 @@ export interface AssignedCoupon {
   redeemed_at: string | null;
   redeemed_by_admin_id: string | null;
   source: "admin" | "default" | "transfer";
+  unassigned_at: string | null;
+  unassigned_by_admin_id: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -155,6 +155,46 @@ export async function assignCouponToMemberAction(
   return { ok: `Coupon ${created.coupon_number} assigned.` };
 }
 
+/** Soft-remove a wrongly-assigned coupon from a member (not for redeemed ones). */
+export async function unassignCouponAction(
+  memberId: string,
+  assignedCouponId: string,
+): Promise<void> {
+  const admin = await requireAdmin();
+
+  const { data: row } = await db()
+    .from("assigned_coupons")
+    .select("id, status, coupon_number")
+    .eq("id", assignedCouponId)
+    .eq("member_id", memberId)
+    .is("unassigned_at", null)
+    .maybeSingle();
+  if (!row || row.status === "redeemed") return; // can't remove a used coupon
+
+  await db()
+    .from("assigned_coupons")
+    .update({
+      unassigned_at: new Date().toISOString(),
+      unassigned_by_admin_id: admin.adminId,
+      // Clear any active code so it frees the unique-code slot.
+      redemption_code: null,
+      revealed_at: null,
+    })
+    .eq("id", assignedCouponId)
+    .eq("member_id", memberId);
+
+  await audit({
+    adminId: admin.adminId,
+    memberId,
+    action: "coupon.unassign",
+    entityType: "assigned_coupon",
+    entityId: assignedCouponId,
+    detail: { coupon_number: row.coupon_number },
+  });
+
+  revalidatePath(`/admin/members/${memberId}`);
+}
+
 /** Staff redeem a member's revealed coupon by the code the customer shows. */
 export async function redeemCouponAction(
   memberId: string,

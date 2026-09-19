@@ -40,6 +40,7 @@ export async function grantDefaultCoupons(
     .from("assigned_coupons")
     .select("coupon_definition_id")
     .eq("member_id", memberId)
+    .is("unassigned_at", null)
     .in("coupon_definition_id", Array.from(validIds));
   const heldIds = new Set(
     (held ?? []).map((h: { coupon_definition_id: string }) => h.coupon_definition_id),

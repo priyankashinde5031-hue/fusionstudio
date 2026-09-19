@@ -20,7 +20,8 @@ export async function revalidateCoupons(opts: { memberId?: string } = {}): Promi
   let query = supabase
     .from("assigned_coupons")
     .select("id, status, coupon_definition:coupon_definitions(valid_until)")
-    .in("status", ["available", "revealed"]);
+    .in("status", ["available", "revealed"])
+    .is("unassigned_at", null);
   if (opts.memberId) query = query.eq("member_id", opts.memberId);
 
   const { data } = await query;
@@ -89,6 +90,7 @@ export async function revealCoupon(
     .select("*, coupon_definition:coupon_definitions(*)")
     .eq("id", assignedCouponId)
     .eq("member_id", memberId)
+    .is("unassigned_at", null)
     .maybeSingle();
 
   if (!row) return { ok: false, error: "Coupon not found." };
@@ -195,6 +197,7 @@ export async function redeemByCode(
     .select("*, coupon_definition:coupon_definitions(*)")
     .eq("member_id", memberId)
     .eq("redemption_code", code)
+    .is("unassigned_at", null)
     .maybeSingle();
 
   if (!row) {
