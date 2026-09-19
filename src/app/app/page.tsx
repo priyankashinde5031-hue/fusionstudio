@@ -1,12 +1,10 @@
 import { redirect } from "next/navigation";
 import { requireMember } from "@/lib/auth/member";
 import { db } from "@/lib/supabase/admin";
-import { formatDate, formatDateTime, formatMobile, nowMs } from "@/lib/format";
+import { formatDate, formatMobile, nowMs } from "@/lib/format";
 import { TIER_THEMES } from "@/lib/themes";
 import { MembershipCardHero } from "@/components/app/MembershipCardHero";
-import { RevealButton } from "@/components/app/RevealButton";
-import { TransferButton } from "@/components/app/TransferButton";
-import { RevealedCouponCard } from "@/components/app/RevealedCouponCard";
+import { CouponCard } from "@/components/app/CouponCard";
 import { WalletTabs, type UsedItem, type TransferItem } from "@/components/app/WalletTabs";
 import { revalidateCoupons } from "@/lib/coupons";
 import { logoutMember } from "./login/actions";
@@ -286,56 +284,21 @@ export default async function CustomerHome() {
             <div className="flex flex-col gap-2.5">
               {current.map((c) => {
                 const { left, limit } = usesLeftOf(c);
-                // Revealed → show the code inline, in the same position.
-                if (effState(c) === "active") {
-                  return (
-                    <RevealedCouponCard
-                      key={c.id}
-                      couponId={c.id}
-                      name={c.coupon_definition?.name ?? "Coupon"}
-                      description={c.coupon_definition?.description ?? ""}
-                      couponNumber={c.coupon_number}
-                      code={c.redemption_code!}
-                      usesLeft={left}
-                      usageLimit={limit}
-                    />
-                  );
-                }
                 const rec = receivedInfo(c.id);
                 return (
-                  <div key={c.id} className="panel p-4">
-                    <div className="min-w-0">
-                      <div className="font-semibold truncate">
-                        {c.coupon_definition?.name ?? "Coupon"}
-                      </div>
-                      <div className="text-sm mt-0.5" style={{ color: "var(--color-muted)" }}>
-                        {c.coupon_definition?.description}
-                      </div>
-                    </div>
-                    {limit > 1 && (
-                      <div className="mt-2 inline-flex items-center gap-1.5 chip chip-gold">
-                        {left} of {limit} uses left
-                      </div>
-                    )}
-                    <div className="mt-3 flex items-center gap-3 text-xs mono" style={{ color: "var(--color-faint)" }}>
-                      <span>{c.coupon_number}</span>
-                      {c.coupon_definition && (
-                        <>
-                          <span style={{ color: "var(--color-hairline-strong)" }}>·</span>
-                          <span>exp {formatDate(c.coupon_definition.valid_until)}</span>
-                        </>
-                      )}
-                    </div>
-                    {rec && (
-                      <div className="mt-1 text-xs" style={{ color: "var(--color-faint)" }}>
-                        Received from {formatMobile(rec.mobile)} · {formatDateTime(rec.at)}
-                      </div>
-                    )}
-                    <div className="mt-3 flex flex-wrap items-start gap-2">
-                      <RevealButton couponId={c.id} />
-                      <TransferButton couponId={c.id} />
-                    </div>
-                  </div>
+                  <CouponCard
+                    key={c.id}
+                    couponId={c.id}
+                    name={c.coupon_definition?.name ?? "Coupon"}
+                    description={c.coupon_definition?.description ?? ""}
+                    couponNumber={c.coupon_number}
+                    expUntil={c.coupon_definition?.valid_until ?? c.created_at}
+                    usesLeft={left}
+                    usageLimit={limit}
+                    initialCode={c.redemption_code}
+                    receivedFromMobile={rec?.mobile}
+                    receivedAt={rec?.at}
+                  />
                 );
               })}
             </div>
