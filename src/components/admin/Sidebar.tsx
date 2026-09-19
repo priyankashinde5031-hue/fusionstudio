@@ -13,9 +13,9 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { href: "/admin", label: "Overview", icon: "◈", exact: true },
-  { href: "/admin/membership-types", label: "Membership Types", icon: "❖" },
-  { href: "/admin/coupons", label: "Coupons", icon: "✦" },
   { href: "/admin/members", label: "Members", icon: "◐" },
+  { href: "/admin/coupons", label: "Coupons", icon: "✦" },
+  { href: "/admin/membership-types", label: "Membership Types", icon: "❖" },
 ];
 
 export function SidebarNav() {
