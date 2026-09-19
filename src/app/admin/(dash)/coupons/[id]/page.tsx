@@ -66,6 +66,7 @@ export default async function EditCouponPage({
           terms: c.terms ?? "",
           valid_from: toDateInput(c.valid_from),
           valid_until: toDateInput(c.valid_until),
+          usage_limit: String(c.usage_limit ?? 1),
           is_active: c.is_active,
         }}
       />

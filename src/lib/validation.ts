@@ -37,6 +37,11 @@ export const couponDefinitionSchema = z
     terms: z.string().trim().max(1000).optional().or(z.literal("")),
     valid_from: z.string().min(1, "Validity start is required."),
     valid_until: z.string().min(1, "Expiry is required."),
+    usage_limit: z.coerce
+      .number()
+      .int("Whole number only.")
+      .min(1, "At least 1 use.")
+      .max(100, "Max 100 uses."),
     is_active: z.coerce.boolean().optional().default(true),
   })
   .refine(

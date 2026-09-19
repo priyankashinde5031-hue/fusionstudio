@@ -4,7 +4,8 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { db } from "@/lib/supabase/admin";
 import { formatDate } from "@/lib/format";
 import { BulkAssignForm } from "@/components/admin/BulkAssignForm";
-import { bulkAssignCouponAction } from "@/app/admin/(dash)/members/actions";
+import { AssignAllButton } from "@/components/admin/AssignAllButton";
+import { bulkAssignCouponAction, assignToAllMembersAction } from "@/app/admin/(dash)/members/actions";
 import type { CouponDefinition } from "@/lib/db/types";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export default async function AssignCouponPage({
   const c = data as CouponDefinition;
 
   const bound = bulkAssignCouponAction.bind(null, id);
+  const boundAll = assignToAllMembersAction.bind(null, id);
 
   return (
     <div>
@@ -36,7 +38,13 @@ export default async function AssignCouponPage({
           {c.description} · valid {formatDate(c.valid_from)} → {formatDate(c.valid_until)}
         </p>
       </div>
-      <BulkAssignForm action={bound} />
+      <div className="flex flex-col gap-6">
+        <AssignAllButton action={boundAll} />
+        <div>
+          <div className="eyebrow mb-3">Or assign to specific numbers</div>
+          <BulkAssignForm action={bound} />
+        </div>
+      </div>
     </div>
   );
 }

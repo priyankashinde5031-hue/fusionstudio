@@ -26,6 +26,7 @@ function readForm(formData: FormData) {
     terms: formData.get("terms"),
     valid_from: formData.get("valid_from"),
     valid_until: formData.get("valid_until"),
+    usage_limit: formData.get("usage_limit"),
     is_active: formData.get("is_active") === "on" || formData.get("is_active") === "true",
   };
 }
@@ -47,6 +48,7 @@ export async function createCouponDefinition(
       terms: v.terms || null,
       valid_from: istStart(v.valid_from),
       valid_until: istEnd(v.valid_until),
+      usage_limit: v.usage_limit,
       is_active: v.is_active ?? true,
     })
     .select("id")
@@ -84,6 +86,7 @@ export async function updateCouponDefinition(
       terms: v.terms || null,
       valid_from: istStart(v.valid_from),
       valid_until: istEnd(v.valid_until),
+      usage_limit: v.usage_limit,
       is_active: v.is_active ?? true,
     })
     .eq("id", id);

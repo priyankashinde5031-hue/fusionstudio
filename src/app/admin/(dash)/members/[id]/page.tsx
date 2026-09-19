@@ -16,6 +16,7 @@ import {
   upgradeMember,
   resetMemberPin,
   redeemCouponAction,
+  previewRedeemAction,
   unassignCouponAction,
   updateMemberName,
 } from "../actions";
@@ -96,6 +97,7 @@ export default async function MemberDetailPage({
   const boundUpgrade = upgradeMember.bind(null, id);
   const boundResetPin = resetMemberPin.bind(null, id);
   const boundRedeem = redeemCouponAction.bind(null, id);
+  const boundPreviewRedeem = previewRedeemAction.bind(null, id);
   const hasRevealed = coupons.some((c) => c.status === "revealed");
 
   // Active coupons first, historical (used/expired) at the bottom.
@@ -213,7 +215,7 @@ export default async function MemberDetailPage({
               <div className="eyebrow">Redeem a coupon</div>
               {hasRevealed && <span className="chip chip-gold">code active</span>}
             </div>
-            <RedeemForm action={boundRedeem} />
+            <RedeemForm preview={boundPreviewRedeem} redeem={boundRedeem} />
           </div>
 
           <div className="panel p-5">

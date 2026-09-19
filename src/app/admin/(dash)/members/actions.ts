@@ -6,7 +6,7 @@ import { db } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/admin";
 import { audit } from "@/lib/audit";
 import { findOrCreateMember, issueCard } from "@/lib/members";
-import { redeemByCode } from "@/lib/coupons";
+import { redeemByCode, previewRedeem } from "@/lib/coupons";
 import { normalizeMobile } from "@/lib/format";
 import {
   memberSchema,
@@ -223,19 +223,86 @@ export async function unassignCouponAction(
   revalidatePath(`/admin/members/${memberId}`);
 }
 
-/** Staff redeem a member's revealed coupon by the code the customer shows. */
+/** Look up a code without redeeming — powers the "You're redeeming X" prompt. */
+export async function previewRedeemAction(
+  memberId: string,
+  code: string,
+): Promise<{ ok: boolean; couponName?: string; usesLeft?: number; usageLimit?: number; error?: string }> {
+  await requireAdmin();
+  return previewRedeem(memberId, code);
+}
+
+/** Staff redeem a member's revealed coupon by the code, recording who availed it. */
 export async function redeemCouponAction(
   memberId: string,
-  _prev: FormState,
-  formData: FormData,
-): Promise<FormState> {
+  code: string,
+  usedByName: string,
+  usedByMobile: string,
+): Promise<{ ok: boolean; message?: string; error?: string }> {
   const admin = await requireAdmin();
-  const code = String(formData.get("code") ?? "");
-  const result = await redeemByCode(admin.adminId, memberId, code);
-  if (!result.ok) return { error: result.error };
+  const result = await redeemByCode(admin.adminId, memberId, code, {
+    name: usedByName,
+    mobile: usedByMobile,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
 
   revalidatePath(`/admin/members/${memberId}`);
-  return { ok: `Redeemed ${result.couponName ?? result.couponNumber}.` };
+  const label = result.couponName ?? result.couponNumber;
+  const message = result.closed
+    ? `Redeemed ${label} — fully used now.`
+    : `Redeemed ${label}. ${result.usesLeft} use${result.usesLeft === 1 ? "" : "s"} left.`;
+  return { ok: true, message };
+}
+
+/** Assign a coupon to every active loyalty member (skips guests + existing holders). */
+export async function assignToAllMembersAction(
+  definitionId: string,
+  _prev: FormState,
+  _formData: FormData,
+): Promise<FormState> {
+  void _formData;
+  const admin = await requireAdmin();
+
+  const [{ data: members }, { data: holders }] = await Promise.all([
+    db().from("members").select("id").eq("is_loyalty", true).is("deactivated_at", null),
+    db()
+      .from("assigned_coupons")
+      .select("member_id")
+      .eq("coupon_definition_id", definitionId)
+      .is("unassigned_at", null),
+  ]);
+
+  const held = new Set((holders ?? []).map((h: { member_id: string }) => h.member_id));
+  const targets = (members ?? [])
+    .map((m: { id: string }) => m.id)
+    .filter((id: string) => !held.has(id));
+
+  if (targets.length === 0) {
+    return { ok: "All loyalty members already have this coupon." };
+  }
+
+  const { error } = await db()
+    .from("assigned_coupons")
+    .insert(
+      targets.map((member_id: string) => ({
+        coupon_definition_id: definitionId,
+        member_id,
+        status: "available",
+      })),
+    );
+  if (error) return { error: error.message };
+
+  await audit({
+    adminId: admin.adminId,
+    action: "coupon.assign_all",
+    entityType: "coupon_definition",
+    entityId: definitionId,
+    detail: { assigned: targets.length },
+  });
+
+  revalidatePath(`/admin/coupons/${definitionId}`);
+  revalidatePath("/admin/members");
+  return { ok: `Assigned to ${targets.length} loyalty member${targets.length === 1 ? "" : "s"}.` };
 }
 
 /** Bulk-assign one coupon definition to a pasted list of mobiles. */

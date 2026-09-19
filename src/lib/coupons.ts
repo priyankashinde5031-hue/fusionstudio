@@ -266,14 +266,57 @@ export interface RedeemResult {
   ok: boolean;
   couponNumber?: string;
   couponName?: string;
+  usesLeft?: number;
+  closed?: boolean;
   error?: string;
 }
 
-/** Staff redeem a member's revealed coupon by the code the customer shows. */
+/** Look up a revealed code WITHOUT redeeming — for the confirmation prompt. */
+export async function previewRedeem(
+  memberId: string,
+  rawCode: string,
+): Promise<{ ok: boolean; couponName?: string; usageLimit?: number; usesLeft?: number; error?: string }> {
+  const supabase = db();
+  const code = normalizeCode(rawCode);
+  if (!code) return { ok: false, error: "Enter the code the customer is showing." };
+
+  await revalidateCoupons({ memberId });
+
+  const { data: row } = await supabase
+    .from("assigned_coupons")
+    .select("status, uses_count, coupon_definition:coupon_definitions(name, usage_limit)")
+    .eq("member_id", memberId)
+    .eq("redemption_code", code)
+    .is("unassigned_at", null)
+    .maybeSingle();
+
+  if (!row) return { ok: false, error: "Invalid code. Ask the customer to reveal it in their app." };
+  const c = row as unknown as {
+    status: string;
+    uses_count: number;
+    coupon_definition: { name: string; usage_limit: number } | null;
+  };
+  if (c.status !== "revealed") return { ok: false, error: "This code is no longer active." };
+
+  const limit = c.coupon_definition?.usage_limit ?? 1;
+  return {
+    ok: true,
+    couponName: c.coupon_definition?.name,
+    usageLimit: limit,
+    usesLeft: Math.max(limit - c.uses_count, 0),
+  };
+}
+
+/**
+ * Staff redeem a member's revealed coupon by the code. Records who availed it
+ * (used_by). For multi-use coupons, consumes one use and returns to available
+ * until the last use, then closes (redeemed).
+ */
 export async function redeemByCode(
   adminId: string,
   memberId: string,
   rawCode: string,
+  usedBy?: { name?: string; mobile?: string },
 ): Promise<RedeemResult> {
   const supabase = db();
   const code = normalizeCode(rawCode);
@@ -303,17 +346,42 @@ export async function redeemByCode(
   if (coupon.coupon_definition && new Date(coupon.coupon_definition.valid_until).getTime() < now)
     return { ok: false, error: "This coupon has expired." };
 
+  const limit = coupon.coupon_definition?.usage_limit ?? 1;
+  const newCount = coupon.uses_count + 1;
+  const closing = newCount >= limit;
+
+  // Consume one use. Close on the last, else return to available (re-revealable).
+  const update = closing
+    ? {
+        status: "redeemed" as const,
+        uses_count: newCount,
+        redeemed_at: new Date(now).toISOString(),
+        redeemed_by_admin_id: adminId,
+        redemption_code: null,
+        revealed_at: null,
+      }
+    : {
+        status: "available" as const,
+        uses_count: newCount,
+        redemption_code: null,
+        revealed_at: null,
+      };
+
   const { error } = await supabase
     .from("assigned_coupons")
-    .update({
-      status: "redeemed",
-      redeemed_at: new Date(now).toISOString(),
-      redeemed_by_admin_id: adminId,
-    })
+    .update(update)
     .eq("id", coupon.id)
     .eq("status", "revealed"); // guard against double-redeem races
 
   if (error) return { ok: false, error: "Could not redeem. Try again." };
+
+  // Log who availed this use.
+  await supabase.from("coupon_redemptions").insert({
+    assigned_coupon_id: coupon.id,
+    used_by_name: usedBy?.name || null,
+    used_by_mobile: usedBy?.mobile || null,
+    redeemed_by_admin_id: adminId,
+  });
 
   await audit({
     adminId,
@@ -321,12 +389,20 @@ export async function redeemByCode(
     action: "coupon.redeem",
     entityType: "assigned_coupon",
     entityId: coupon.id,
-    detail: { coupon_number: coupon.coupon_number, code },
+    detail: {
+      coupon_number: coupon.coupon_number,
+      code,
+      use: newCount,
+      of: limit,
+      used_by: usedBy?.name || usedBy?.mobile || null,
+    },
   });
 
   return {
     ok: true,
     couponNumber: coupon.coupon_number,
     couponName: coupon.coupon_definition?.name,
+    usesLeft: Math.max(limit - newCount, 0),
+    closed: closing,
   };
 }

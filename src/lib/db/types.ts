@@ -69,6 +69,7 @@ export interface CouponDefinition {
   terms: string | null;
   valid_from: string;
   valid_until: string;
+  usage_limit: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -84,6 +85,7 @@ export interface AssignedCoupon {
   revealed_at: string | null;
   redeemed_at: string | null;
   redeemed_by_admin_id: string | null;
+  uses_count: number;
   source: "admin" | "default" | "transfer";
   unassigned_at: string | null;
   unassigned_by_admin_id: string | null;

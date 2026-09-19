@@ -11,6 +11,7 @@ export interface CouponDefaults {
   terms: string;
   valid_from: string; // yyyy-mm-dd
   valid_until: string; // yyyy-mm-dd
+  usage_limit: string;
   is_active: boolean;
 }
 
@@ -24,6 +25,7 @@ const EMPTY: CouponDefaults = {
   terms: "",
   valid_from: todayIso(),
   valid_until: "",
+  usage_limit: "1",
   is_active: true,
 };
 
@@ -112,6 +114,26 @@ export function CouponForm({
             Times are anchored to IST — a coupon is usable from 00:00 on the start
             date through 23:59 on the expiry date.
           </p>
+          <div>
+            <label className="label" htmlFor="usage_limit">
+              Number of uses
+            </label>
+            <input
+              id="usage_limit"
+              name="usage_limit"
+              type="number"
+              min="1"
+              max="100"
+              required
+              defaultValue={defaults.usage_limit}
+              className="input"
+              style={{ maxWidth: 160 }}
+            />
+            <p className="text-xs mt-1.5" style={{ color: "var(--color-faint)" }}>
+              How many times it can be redeemed. e.g. 4 for “pay for 3, get 1 free”.
+              Closes automatically after the last use.
+            </p>
+          </div>
           <div className="flex-1">
             <label className="label" htmlFor="terms">
               Terms <span style={{ color: "var(--color-faint)" }}>optional</span>
