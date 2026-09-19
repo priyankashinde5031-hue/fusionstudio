@@ -70,12 +70,23 @@ const metaSender: OtpSender = {
       if (!res.ok) {
         const body = await res.text();
         console.error("WhatsApp send failed", res.status, body);
-        return { ok: false, error: "Could not send the code. Try again." };
+        // TEMP: surface Meta's reason to help diagnose setup. Revert to a
+        // generic message once WhatsApp sending is confirmed working.
+        let detail = body;
+        try {
+          const j = JSON.parse(body);
+          detail = `${j.error?.code ?? res.status}: ${j.error?.message ?? "error"}${
+            j.error?.error_data?.details ? ` — ${j.error.error_data.details}` : ""
+          }`;
+        } catch {
+          /* keep raw body */
+        }
+        return { ok: false, error: `WhatsApp send failed [${detail}]`.slice(0, 300) };
       }
       return { ok: true };
     } catch (e) {
       console.error("WhatsApp send error", e);
-      return { ok: false, error: "Could not send the code. Try again." };
+      return { ok: false, error: `WhatsApp network error: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200) };
     }
   },
 };
