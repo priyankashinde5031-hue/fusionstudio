@@ -1,8 +1,9 @@
 import "server-only";
 import { db } from "@/lib/supabase/admin";
-import { nowMs } from "@/lib/format";
+import { nowMs, normalizeMobile } from "@/lib/format";
 import { generateCode, normalizeCode } from "@/lib/coupon-code";
 import { audit } from "@/lib/audit";
+import { findOrCreateMember } from "@/lib/members";
 import type { AssignedCoupon, CouponDefinition } from "@/lib/db/types";
 
 type RowWithDef = AssignedCoupon & {
@@ -135,6 +136,95 @@ export async function revealCoupon(
   });
 
   return { ok: true, code };
+}
+
+export interface TransferResult {
+  ok: boolean;
+  toMobile?: string;
+  createdGuest?: boolean;
+  error?: string;
+}
+
+/**
+ * Transfer an AVAILABLE coupon to another mobile (§8). Auto-creates a Guest
+ * Member if the recipient doesn't exist. Logs to coupon_transfers.
+ */
+export async function transferCoupon(
+  fromMemberId: string,
+  assignedCouponId: string,
+  toMobileRaw: string,
+): Promise<TransferResult> {
+  const supabase = db();
+
+  const { data: sender } = await supabase
+    .from("members")
+    .select("mobile, mobile_verified_at, deactivated_at")
+    .eq("id", fromMemberId)
+    .maybeSingle();
+  if (!sender || sender.deactivated_at) return { ok: false, error: "Account unavailable." };
+  if (!sender.mobile_verified_at) return { ok: false, error: "Verify your number first." };
+
+  const toMobile = normalizeMobile(toMobileRaw);
+  if (!toMobile) return { ok: false, error: "Enter a valid +91 mobile (10 digits, starts 6–9)." };
+  if (toMobile === sender.mobile) return { ok: false, error: "You can't transfer to your own number." };
+
+  // Fresh state before checking.
+  await revalidateCoupons({ memberId: fromMemberId });
+
+  const { data: row } = await supabase
+    .from("assigned_coupons")
+    .select("*, coupon_definition:coupon_definitions(name)")
+    .eq("id", assignedCouponId)
+    .eq("member_id", fromMemberId)
+    .is("unassigned_at", null)
+    .maybeSingle();
+
+  if (!row) return { ok: false, error: "Coupon not found." };
+  const coupon = row as unknown as AssignedCoupon & { coupon_definition: { name: string } | null };
+
+  if (coupon.status === "redeemed") return { ok: false, error: "This coupon is already used." };
+  if (coupon.status === "revealed")
+    return { ok: false, error: "Hide the code first, then transfer." };
+  if (coupon.status === "expired") return { ok: false, error: "This coupon has expired." };
+  if (coupon.status !== "available") return { ok: false, error: "This coupon can't be transferred." };
+
+  let recipient;
+  let createdGuest = false;
+  try {
+    const res = await findOrCreateMember(toMobile, {
+      isLoyalty: false,
+      createdVia: "coupon_transfer",
+    });
+    recipient = res.member;
+    createdGuest = res.created;
+  } catch {
+    return { ok: false, error: "Could not reach the recipient account. Try again." };
+  }
+
+  const { error: updErr } = await supabase
+    .from("assigned_coupons")
+    .update({ member_id: recipient.id, source: "transfer" })
+    .eq("id", assignedCouponId)
+    .eq("member_id", fromMemberId)
+    .eq("status", "available"); // guard against races
+  if (updErr) return { ok: false, error: "Could not transfer. Try again." };
+
+  await supabase.from("coupon_transfers").insert({
+    assigned_coupon_id: assignedCouponId,
+    from_member_id: fromMemberId,
+    to_member_id: recipient.id,
+    to_mobile: toMobile,
+  });
+
+  await audit({
+    memberId: fromMemberId,
+    action: "coupon.transfer",
+    entityType: "assigned_coupon",
+    entityId: assignedCouponId,
+    detail: { coupon_number: coupon.coupon_number, to_mobile: toMobile, to_member_id: recipient.id },
+  });
+
+  return { ok: true, toMobile, createdGuest };
 }
 
 /** Member hides a revealed code → coupon returns to available (transferable again). */

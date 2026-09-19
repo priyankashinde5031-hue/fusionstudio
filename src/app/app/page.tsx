@@ -5,6 +5,7 @@ import { formatDate, formatDateTime, formatMobile, nowMs } from "@/lib/format";
 import { TIER_THEMES } from "@/lib/themes";
 import { MembershipCardMini } from "@/components/MembershipCardMini";
 import { RevealButton } from "@/components/app/RevealButton";
+import { TransferButton } from "@/components/app/TransferButton";
 import { RevealedCouponCard } from "@/components/app/RevealedCouponCard";
 import { revalidateCoupons } from "@/lib/coupons";
 import { logoutMember } from "./login/actions";
@@ -210,9 +211,7 @@ export default async function CustomerHome() {
                                   {c.coupon_definition?.description}
                                 </div>
                               </div>
-                              {g.key === "available" ? (
-                                <RevealButton couponId={c.id} />
-                              ) : (
+                              {g.key !== "available" && (
                                 <span className="chip chip-muted">{g.label}</span>
                               )}
                             </div>
@@ -228,6 +227,12 @@ export default async function CustomerHome() {
                                 Used {formatDateTime(c.redeemed_at)}
                               </div>
                             )}
+                            {g.key === "available" && (
+                              <div className="mt-3 flex flex-wrap items-start gap-2">
+                                <RevealButton couponId={c.id} />
+                                <TransferButton couponId={c.id} />
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -238,7 +243,7 @@ export default async function CustomerHome() {
             </div>
           )}
           <p className="text-xs mt-4 text-center" style={{ color: "var(--color-faint)" }}>
-            Transfer is coming next.
+            Reveal a code to use in-salon, or transfer an unused coupon to a friend.
           </p>
         </section>
       </main>

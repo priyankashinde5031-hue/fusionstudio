@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getMemberSession } from "@/lib/auth/member-session";
-import { revealCoupon, hideCoupon } from "@/lib/coupons";
+import { revealCoupon, hideCoupon, transferCoupon } from "@/lib/coupons";
 
 export interface RevealState {
   error?: string;
@@ -38,4 +38,25 @@ export async function hideCouponAction(
 
   revalidatePath("/app");
   return {};
+}
+
+export interface TransferState {
+  error?: string;
+  ok?: string;
+}
+
+export async function transferCouponAction(
+  assignedCouponId: string,
+  _prev: TransferState,
+  formData: FormData,
+): Promise<TransferState> {
+  const session = await getMemberSession();
+  if (!session) return { error: "Please sign in again." };
+
+  const mobile = String(formData.get("mobile") ?? "");
+  const result = await transferCoupon(session.memberId, assignedCouponId, mobile);
+  if (!result.ok) return { error: result.error ?? "Could not transfer." };
+
+  revalidatePath("/app");
+  return { ok: `Sent to ${result.toMobile}${result.createdGuest ? " (new guest)" : ""}.` };
 }
