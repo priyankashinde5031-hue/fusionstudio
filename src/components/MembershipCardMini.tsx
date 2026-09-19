@@ -25,10 +25,12 @@ const SKINS: Record<MembershipTheme, TierSkin> = {
     border: "rgba(255,255,255,0.45)",
   },
   platinum: {
-    bg: "linear-gradient(135deg, #eef2f5 0%, #d3dde4 40%, #ffffff 55%, #cbd6de 100%)",
-    fg: "#2a3138",
-    sub: "rgba(42,49,56,0.6)",
-    sheen: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.6) 50%, transparent 60%)",
+    // Icy blue-violet iridescent pearl: pale-blue → lilac → mint, distinct from
+    // Silver's neutral steel.
+    bg: "linear-gradient(135deg, #e7ecf6 0%, #c4cfe8 26%, #e9dcf3 46%, #d3ecec 64%, #bfcbe6 100%)",
+    fg: "#2b3040",
+    sub: "rgba(43,48,64,0.62)",
+    sheen: "linear-gradient(105deg, transparent 38%, rgba(214,224,255,0.65) 50%, transparent 62%)",
     border: "rgba(255,255,255,0.6)",
   },
   black: {
