@@ -12,6 +12,17 @@ export const adminLoginSchema = z.object({
   password: z.string().min(1, "Enter your password."),
 });
 
+export const adminPasswordChangeSchema = z
+  .object({
+    current: z.string().min(1, "Enter your current password."),
+    next: z.string().min(8, "New password must be at least 8 characters."),
+    confirm: z.string().min(1, "Confirm your new password."),
+  })
+  .refine((v) => v.next === v.confirm, {
+    message: "New passwords don't match.",
+    path: ["confirm"],
+  });
+
 export const membershipTypeSchema = z.object({
   name: z.string().trim().min(2, "Name is required.").max(60),
   description: z.string().trim().max(500).optional().or(z.literal("")),

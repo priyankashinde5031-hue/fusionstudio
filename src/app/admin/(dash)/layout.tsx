@@ -56,12 +56,12 @@ export default async function AdminDashLayout({
           >
             {initials || "FS"}
           </div>
-          <div className="min-w-0 flex-1">
+          <Link href="/admin/account" className="min-w-0 flex-1" title="Account settings">
             <div className="text-sm font-semibold truncate">{admin.name ?? "Staff"}</div>
             <div className="text-xs truncate" style={{ color: "var(--color-faint)" }}>
               {admin.email}
             </div>
-          </div>
+          </Link>
           <form action={logoutAction}>
             <button
               type="submit"
