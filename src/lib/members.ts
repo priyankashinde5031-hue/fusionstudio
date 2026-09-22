@@ -24,15 +24,20 @@ export async function grantDefaultCoupons(
   );
   if (defIds.length === 0) return 0;
 
-  // Only grant coupons that are active and not expired.
-  const nowIso = new Date(nowMs()).toISOString();
-  const { data: validDefs } = await supabase
+  // Only grant coupons that are active and not expired. Membership coupons have
+  // no fixed valid_until (they expire with the membership) so they always
+  // qualify while active; marketing coupons must still be within their window.
+  const now = nowMs();
+  const { data: defs } = await supabase
     .from("coupon_definitions")
-    .select("id")
+    .select("id, kind, valid_until")
     .in("id", defIds)
-    .eq("is_active", true)
-    .gt("valid_until", nowIso);
-  const validIds = new Set((validDefs ?? []).map((d: { id: string }) => d.id));
+    .eq("is_active", true);
+  const validIds = new Set(
+    ((defs ?? []) as { id: string; kind: string; valid_until: string | null }[])
+      .filter((d) => d.kind === "membership" || (d.valid_until != null && new Date(d.valid_until).getTime() > now))
+      .map((d) => d.id),
+  );
   if (validIds.size === 0) return 0;
 
   // Skip definitions the member already holds an instance of.
