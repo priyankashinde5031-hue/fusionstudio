@@ -6,11 +6,11 @@ export default function Home() {
       <div className="w-full max-w-md text-center">
         <div className="eyebrow mb-5">Membership &amp; Coupons</div>
         <h1 className="display text-6xl mb-3">
-          Fusion<span style={{ color: "var(--color-gold)" }}>Studio</span>
+          cimoma<span style={{ color: "var(--color-gold)" }}>Studio</span>
         </h1>
         <p style={{ color: "var(--color-muted)" }} className="mb-10 text-[0.95rem]">
-          The salon membership platform. Cards, benefits and coupons — managed
-          from one place.
+          A premium membership management platform. Cards, benefits and rewards —
+          beautifully managed from one place.
         </p>
 
         <div className="flex flex-col gap-3">
@@ -23,7 +23,7 @@ export default function Home() {
         </div>
 
         <p className="mt-10 text-xs" style={{ color: "var(--color-faint)" }}>
-          Fusion Studio · Luxury salon &amp; spa
+          made with <span style={{ color: "var(--color-gold)" }}>♥</span> by zeloagent.com
         </p>
       </div>
     </main>
