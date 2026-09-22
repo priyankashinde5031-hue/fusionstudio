@@ -40,7 +40,7 @@ export default async function EditMembershipTypePage({
   const [{ data: activeCoupons }, { data: defaultLinks }] = await Promise.all([
     supabase
       .from("coupon_definitions")
-      .select("id, name, description")
+      .select("id, name, description, kind, valid_until")
       .eq("is_active", true)
       .order("name"),
     supabase
@@ -51,7 +51,7 @@ export default async function EditMembershipTypePage({
 
   const couponOptions = (activeCoupons ?? []) as Pick<
     CouponDefinition,
-    "id" | "name" | "description"
+    "id" | "name" | "description" | "kind" | "valid_until"
   >[];
   const selectedDefaultIds = (defaultLinks ?? []).map(
     (l: { coupon_definition_id: string }) => l.coupon_definition_id,
