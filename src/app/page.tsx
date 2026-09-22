@@ -11,7 +11,7 @@ export default function Home() {
           className="display leading-[1.05] mb-3 whitespace-nowrap"
           style={{ fontSize: "clamp(2.15rem, 11.5vw, 3.75rem)" }}
         >
-          cimoma<span style={{ color: "var(--color-gold)" }}>Studio</span>
+          Cimoma <span style={{ color: "var(--color-gold)" }}>Studio</span>
         </h1>
         <p
           style={{ color: "var(--color-muted)" }}
