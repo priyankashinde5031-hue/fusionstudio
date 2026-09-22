@@ -1,14 +1,16 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { SubmitButton } from "@/components/SubmitButton";
 import type { FormState } from "@/app/admin/(dash)/coupons/actions";
+import type { CouponKind } from "@/lib/db/types";
 
 export interface CouponDefaults {
   name: string;
   description: string;
   terms: string;
+  kind: CouponKind;
   valid_from: string; // yyyy-mm-dd
   valid_until: string; // yyyy-mm-dd
   usage_limit: string;
@@ -23,6 +25,7 @@ const EMPTY: CouponDefaults = {
   name: "",
   description: "",
   terms: "",
+  kind: "marketing",
   valid_from: todayIso(),
   valid_until: "",
   usage_limit: "1",
@@ -39,6 +42,8 @@ export function CouponForm({
   submitLabel?: string;
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(action, {});
+  const [kind, setKind] = useState<CouponKind>(defaults.kind);
+  const isMembership = kind === "membership";
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -70,6 +75,40 @@ export function CouponForm({
               placeholder="What the customer gets, e.g. 1 complimentary head spa."
             />
           </div>
+          <div>
+            <span className="label">Coupon type</span>
+            <input type="hidden" name="kind" value={kind} />
+            <div className="grid grid-cols-2 gap-3 mt-1">
+              <button
+                type="button"
+                onClick={() => setKind("marketing")}
+                className="panel px-3 py-2.5 text-left"
+                style={{
+                  borderColor: !isMembership ? "var(--color-gold)" : undefined,
+                  outline: !isMembership ? "1px solid var(--color-gold)" : "none",
+                }}
+              >
+                <div className="text-sm font-medium">Marketing</div>
+                <div className="text-xs" style={{ color: "var(--color-faint)" }}>
+                  Fixed start &amp; expiry dates
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setKind("membership")}
+                className="panel px-3 py-2.5 text-left"
+                style={{
+                  borderColor: isMembership ? "var(--color-gold)" : undefined,
+                  outline: isMembership ? "1px solid var(--color-gold)" : "none",
+                }}
+              >
+                <div className="text-sm font-medium">Membership</div>
+                <div className="text-xs" style={{ color: "var(--color-faint)" }}>
+                  Expires with the membership
+                </div>
+              </button>
+            </div>
+          </div>
           <label className="flex items-center gap-3 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -82,38 +121,58 @@ export function CouponForm({
         </div>
 
         <div className="panel p-6 flex flex-col gap-5">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label" htmlFor="valid_from">
-                Validity (start)
-              </label>
-              <input
-                id="valid_from"
-                name="valid_from"
-                type="date"
-                required
-                defaultValue={defaults.valid_from}
-                className="input"
-              />
+          {isMembership ? (
+            <div
+              className="rounded-lg px-3 py-3 text-sm"
+              style={{
+                color: "var(--color-muted)",
+                background: "color-mix(in srgb, var(--color-gold) 8%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--color-gold) 25%, transparent)",
+              }}
+            >
+              <div className="font-medium" style={{ color: "var(--color-fg)" }}>
+                No expiry date needed
+              </div>
+              This coupon expires automatically together with the member&apos;s
+              membership (the card&apos;s validity, ~365 days). If the membership
+              lapses, the coupon expires with it.
             </div>
-            <div>
-              <label className="label" htmlFor="valid_until">
-                Expiry
-              </label>
-              <input
-                id="valid_until"
-                name="valid_until"
-                type="date"
-                required
-                defaultValue={defaults.valid_until}
-                className="input"
-              />
-            </div>
-          </div>
-          <p className="text-xs" style={{ color: "var(--color-faint)" }}>
-            Times are anchored to IST — a coupon is usable from 00:00 on the start
-            date through 23:59 on the expiry date.
-          </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label" htmlFor="valid_from">
+                    Validity (start)
+                  </label>
+                  <input
+                    id="valid_from"
+                    name="valid_from"
+                    type="date"
+                    required
+                    defaultValue={defaults.valid_from}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="label" htmlFor="valid_until">
+                    Expiry
+                  </label>
+                  <input
+                    id="valid_until"
+                    name="valid_until"
+                    type="date"
+                    required
+                    defaultValue={defaults.valid_until}
+                    className="input"
+                  />
+                </div>
+              </div>
+              <p className="text-xs" style={{ color: "var(--color-faint)" }}>
+                Times are anchored to IST — a coupon is usable from 00:00 on the
+                start date through 23:59 on the expiry date.
+              </p>
+            </>
+          )}
           <div>
             <label className="label" htmlFor="usage_limit">
               Number of uses

@@ -24,11 +24,28 @@ function readForm(formData: FormData) {
     name: formData.get("name"),
     description: formData.get("description"),
     terms: formData.get("terms"),
+    kind: formData.get("kind") === "membership" ? "membership" : "marketing",
     valid_from: formData.get("valid_from"),
     valid_until: formData.get("valid_until"),
     usage_limit: formData.get("usage_limit"),
     is_active: formData.get("is_active") === "on" || formData.get("is_active") === "true",
   };
+}
+
+/**
+ * Build the validity columns for a coupon. Marketing coupons store their fixed
+ * IST window; membership coupons store no expiry (valid_until = null) and
+ * expire with the holder's membership.
+ */
+function validityColumns(v: {
+  kind: "marketing" | "membership";
+  valid_from?: string;
+  valid_until?: string;
+}): { valid_from: string; valid_until: string | null } {
+  if (v.kind === "membership") {
+    return { valid_from: new Date().toISOString(), valid_until: null };
+  }
+  return { valid_from: istStart(v.valid_from ?? ""), valid_until: istEnd(v.valid_until ?? "") };
 }
 
 export async function createCouponDefinition(
@@ -46,8 +63,8 @@ export async function createCouponDefinition(
       name: v.name,
       description: v.description,
       terms: v.terms || null,
-      valid_from: istStart(v.valid_from),
-      valid_until: istEnd(v.valid_until),
+      kind: v.kind,
+      ...validityColumns(v),
       usage_limit: v.usage_limit,
       is_active: v.is_active ?? true,
     })
@@ -84,8 +101,8 @@ export async function updateCouponDefinition(
       name: v.name,
       description: v.description,
       terms: v.terms || null,
-      valid_from: istStart(v.valid_from),
-      valid_until: istEnd(v.valid_until),
+      kind: v.kind,
+      ...validityColumns(v),
       usage_limit: v.usage_limit,
       is_active: v.is_active ?? true,
     })

@@ -62,13 +62,17 @@ export interface MembershipCard {
   issued_at: string;
 }
 
+export type CouponKind = "marketing" | "membership";
+
 export interface CouponDefinition {
   id: string;
   name: string;
   description: string;
   terms: string | null;
+  kind: CouponKind;
   valid_from: string;
-  valid_until: string;
+  /** Fixed expiry for marketing coupons; null for membership coupons. */
+  valid_until: string | null;
   usage_limit: number;
   is_active: boolean;
   created_at: string;

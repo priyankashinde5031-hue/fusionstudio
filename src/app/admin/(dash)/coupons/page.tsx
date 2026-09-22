@@ -9,7 +9,10 @@ export const dynamic = "force-dynamic";
 function displayStatus(c: CouponDefinition): { label: string; cls: string } {
   const now = Date.now();
   if (!c.is_active) return { label: "Inactive", cls: "chip chip-muted" };
-  if (new Date(c.valid_until).getTime() < now) return { label: "Expired", cls: "chip chip-danger" };
+  // Membership coupons have no fixed window — they live with the membership.
+  if (c.kind === "membership") return { label: "Membership", cls: "chip chip-success" };
+  if (c.valid_until && new Date(c.valid_until).getTime() < now)
+    return { label: "Expired", cls: "chip chip-danger" };
   if (new Date(c.valid_from).getTime() > now) return { label: "Upcoming", cls: "chip" };
   return { label: "Live", cls: "chip chip-success" };
 }
@@ -73,8 +76,14 @@ export default async function CouponsPage() {
                   </div>
                 </div>
                 <div className="hidden sm:block text-right text-xs shrink-0" style={{ color: "var(--color-faint)" }}>
-                  <div className="mono">{formatDate(c.valid_from)}</div>
-                  <div className="mono">→ {formatDate(c.valid_until)}</div>
+                  {c.kind === "membership" ? (
+                    <div>Expires with membership</div>
+                  ) : (
+                    <>
+                      <div className="mono">{formatDate(c.valid_from)}</div>
+                      <div className="mono">→ {c.valid_until ? formatDate(c.valid_until) : "—"}</div>
+                    </>
+                  )}
                 </div>
                 <span className={st.cls}>{st.label}</span>
               </Link>

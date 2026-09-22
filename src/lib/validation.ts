@@ -46,8 +46,10 @@ export const couponDefinitionSchema = z
     name: z.string().trim().min(2, "Name is required.").max(80),
     description: z.string().trim().min(2, "Benefit description is required.").max(500),
     terms: z.string().trim().max(1000).optional().or(z.literal("")),
-    valid_from: z.string().min(1, "Validity start is required."),
-    valid_until: z.string().min(1, "Expiry is required."),
+    // 'marketing' keeps fixed dates; 'membership' expires with the membership.
+    kind: z.enum(["marketing", "membership"]).default("marketing"),
+    valid_from: z.string().optional().or(z.literal("")),
+    valid_until: z.string().optional().or(z.literal("")),
     usage_limit: z.coerce
       .number()
       .int("Whole number only.")
@@ -55,10 +57,24 @@ export const couponDefinitionSchema = z
       .max(100, "Max 100 uses."),
     is_active: z.coerce.boolean().optional().default(true),
   })
-  .refine(
-    (v) => new Date(v.valid_until).getTime() > new Date(v.valid_from).getTime(),
-    { message: "Expiry must be after the validity start.", path: ["valid_until"] },
-  );
+  .superRefine((v, ctx) => {
+    // Membership coupons carry no fixed dates — they expire with the membership.
+    if (v.kind === "membership") return;
+    if (!v.valid_from) {
+      ctx.addIssue({ code: "custom", message: "Validity start is required.", path: ["valid_from"] });
+    }
+    if (!v.valid_until) {
+      ctx.addIssue({ code: "custom", message: "Expiry is required.", path: ["valid_until"] });
+      return;
+    }
+    if (v.valid_from && new Date(v.valid_until).getTime() <= new Date(v.valid_from).getTime()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Expiry must be after the validity start.",
+        path: ["valid_until"],
+      });
+    }
+  });
 
 export const memberSchema = z.object({
   mobile: z.string().trim().min(1, "Mobile number is required."),

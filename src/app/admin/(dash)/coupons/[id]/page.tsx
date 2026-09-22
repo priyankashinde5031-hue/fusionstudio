@@ -11,7 +11,8 @@ import type { CouponDefinition } from "@/lib/db/types";
 export const dynamic = "force-dynamic";
 
 /** timestamptz → yyyy-mm-dd in IST for the date inputs */
-function toDateInput(ts: string): string {
+function toDateInput(ts: string | null): string {
+  if (!ts) return "";
   return formatInTimeZone(new Date(ts), IST, "yyyy-MM-dd");
 }
 
@@ -64,6 +65,7 @@ export default async function EditCouponPage({
           name: c.name,
           description: c.description,
           terms: c.terms ?? "",
+          kind: c.kind,
           valid_from: toDateInput(c.valid_from),
           valid_until: toDateInput(c.valid_until),
           usage_limit: String(c.usage_limit ?? 1),

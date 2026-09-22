@@ -6,7 +6,7 @@ import { TIER_THEMES } from "@/lib/themes";
 import { MembershipCardHero } from "@/components/app/MembershipCardHero";
 import { CouponCard } from "@/components/app/CouponCard";
 import { WalletTabs, type UsedItem, type TransferItem } from "@/components/app/WalletTabs";
-import { revalidateCoupons } from "@/lib/coupons";
+import { revalidateCoupons, isCouponExpired, effectiveCouponExpiryMs } from "@/lib/coupons";
 import { logoutMember } from "./login/actions";
 import type {
   Member,
@@ -122,10 +122,16 @@ export default async function CustomerHome() {
   function effState(c: CouponWithDef): "used" | "expired" | "active" | "available" {
     if (c.status === "redeemed") return "used";
     const def = c.coupon_definition;
-    const past = !def || !def.is_active || new Date(def.valid_until).getTime() < now;
+    const past =
+      !def || !def.is_active || isCouponExpired(def, activeCard?.valid_until, now);
     if (c.status === "expired" || past) return "expired";
     if (c.status === "revealed" && c.redemption_code) return "active";
     return "available";
+  }
+  // Effective expiry date to show on a coupon (membership → membership end).
+  function couponExpIso(c: CouponWithDef): string {
+    const ms = effectiveCouponExpiryMs(c.coupon_definition, activeCard?.valid_until);
+    return ms != null ? new Date(ms).toISOString() : c.created_at;
   }
   function usesLeftOf(c: CouponWithDef): { left: number; limit: number } {
     const limit = c.coupon_definition?.usage_limit ?? 1;
@@ -152,7 +158,7 @@ export default async function CustomerHome() {
         couponNumber: c.coupon_number,
         status: effState(c) === "used" ? "redeemed" : "expired",
         redeemedAt: c.redeemed_at,
-        expUntil: c.coupon_definition?.valid_until ?? c.created_at,
+        expUntil: couponExpIso(c),
         receivedFromMobile: rec?.mobile,
         receivedAt: rec?.at,
       };
@@ -292,7 +298,7 @@ export default async function CustomerHome() {
                     name={c.coupon_definition?.name ?? "Coupon"}
                     description={c.coupon_definition?.description ?? ""}
                     couponNumber={c.coupon_number}
-                    expUntil={c.coupon_definition?.valid_until ?? c.created_at}
+                    expUntil={couponExpIso(c)}
                     usesLeft={left}
                     usageLimit={limit}
                     initialCode={c.redemption_code}

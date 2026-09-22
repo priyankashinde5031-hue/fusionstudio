@@ -7,20 +7,79 @@ import { findOrCreateMember } from "@/lib/members";
 import type { AssignedCoupon, CouponDefinition } from "@/lib/db/types";
 
 type RowWithDef = AssignedCoupon & {
-  coupon_definition: Pick<CouponDefinition, "valid_from" | "valid_until"> | null;
+  coupon_definition: Pick<CouponDefinition, "kind" | "valid_from" | "valid_until"> | null;
 };
 
 /**
- * Recompute coupon states (§7). Flips coupons whose definition has passed its
- * expiry to `expired`. (There is no 24-hour reveal window — a revealed coupon
- * keeps its code until redeemed.) Runs lazily on read.
- * Returns the number of coupons changed.
+ * Effective expiry (ms since epoch) of a coupon held by a member.
+ * - marketing  → the definition's fixed valid_until.
+ * - membership → the holder's active membership expiry (card valid_until).
+ * Returns null when there is no expiry to apply, which for a membership coupon
+ * means the member has no active membership → the coupon is treated as expired.
+ */
+export function effectiveCouponExpiryMs(
+  def: Pick<CouponDefinition, "kind" | "valid_until"> | null,
+  activeCardValidUntil: string | null | undefined,
+): number | null {
+  if (!def) return null;
+  if (def.kind === "membership") {
+    return activeCardValidUntil ? new Date(activeCardValidUntil).getTime() : null;
+  }
+  return def.valid_until ? new Date(def.valid_until).getTime() : null;
+}
+
+/** True when a member's coupon is past its effective expiry as of `now`. */
+export function isCouponExpired(
+  def: Pick<CouponDefinition, "kind" | "valid_until"> | null,
+  activeCardValidUntil: string | null | undefined,
+  now: number,
+): boolean {
+  if (def?.kind === "membership") {
+    // No active membership → expired; otherwise compare to the membership end.
+    const exp = effectiveCouponExpiryMs(def, activeCardValidUntil);
+    return exp == null || exp < now;
+  }
+  const exp = effectiveCouponExpiryMs(def, activeCardValidUntil);
+  return exp != null && exp < now;
+}
+
+/** member_id → the latest active card's valid_until (the membership expiry). */
+async function activeCardExpiryByMember(memberIds: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (memberIds.length === 0) return map;
+  const { data } = await db()
+    .from("membership_cards")
+    .select("member_id, valid_until, status")
+    .in("member_id", [...new Set(memberIds)])
+    .eq("status", "active");
+  for (const row of (data ?? []) as { member_id: string; valid_until: string }[]) {
+    const prev = map.get(row.member_id);
+    // Keep the furthest-out active membership if a member has more than one.
+    if (!prev || new Date(row.valid_until).getTime() > new Date(prev).getTime()) {
+      map.set(row.member_id, row.valid_until);
+    }
+  }
+  return map;
+}
+
+/** The single member's active membership expiry (card valid_until), or null. */
+async function getActiveCardExpiry(memberId: string): Promise<string | null> {
+  const map = await activeCardExpiryByMember([memberId]);
+  return map.get(memberId) ?? null;
+}
+
+/**
+ * Recompute coupon states (§7). Flips coupons past their effective expiry to
+ * `expired` — for marketing coupons that's the definition window; for
+ * membership coupons it's the holder's membership expiry. (There is no
+ * 24-hour reveal window — a revealed coupon keeps its code until redeemed.)
+ * Runs lazily on read. Returns the number of coupons changed.
  */
 export async function revalidateCoupons(opts: { memberId?: string } = {}): Promise<number> {
   const supabase = db();
   let query = supabase
     .from("assigned_coupons")
-    .select("id, status, coupon_definition:coupon_definitions(valid_until)")
+    .select("id, member_id, status, coupon_definition:coupon_definitions(kind, valid_until)")
     .in("status", ["available", "revealed"])
     .is("unassigned_at", null);
   if (opts.memberId) query = query.eq("member_id", opts.memberId);
@@ -29,13 +88,11 @@ export async function revalidateCoupons(opts: { memberId?: string } = {}): Promi
   const rows = (data ?? []) as unknown as RowWithDef[];
   const now = nowMs();
 
+  const cardExpiry = await activeCardExpiryByMember(rows.map((r) => r.member_id));
+
   let changed = 0;
   for (const r of rows) {
-    const defExpired =
-      r.coupon_definition?.valid_until != null &&
-      new Date(r.coupon_definition.valid_until).getTime() < now;
-
-    if (defExpired) {
+    if (isCouponExpired(r.coupon_definition, cardExpiry.get(r.member_id), now)) {
       await supabase
         .from("assigned_coupons")
         .update({ status: "expired", redemption_code: null, revealed_at: null })
@@ -118,9 +175,10 @@ export async function revealCoupon(
 
   const now = nowMs();
   if (!def || !def.is_active) return { ok: false, error: "This coupon is not active." };
-  if (new Date(def.valid_from).getTime() > now)
+  if (def.kind !== "membership" && new Date(def.valid_from).getTime() > now)
     return { ok: false, error: "This coupon isn't valid yet." };
-  if (new Date(def.valid_until).getTime() < now)
+  const cardExp = await getActiveCardExpiry(memberId);
+  if (isCouponExpired(def, cardExp, now))
     return { ok: false, error: "This coupon has expired." };
 
   const code = await generateUniqueRevealCode();
@@ -360,7 +418,8 @@ export async function redeemByCode(
   if (coupon.status !== "revealed") return { ok: false, error: "This code is no longer active." };
 
   const now = nowMs();
-  if (coupon.coupon_definition && new Date(coupon.coupon_definition.valid_until).getTime() < now)
+  const cardExp = await getActiveCardExpiry(memberId);
+  if (isCouponExpired(coupon.coupon_definition, cardExp, now))
     return { ok: false, error: "This coupon has expired." };
 
   const limit = coupon.coupon_definition?.usage_limit ?? 1;

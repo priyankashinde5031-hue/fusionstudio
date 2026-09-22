@@ -35,7 +35,10 @@ export default async function AssignCouponPage({
         </Link>
         <h1 className="display text-4xl mt-2">Assign “{c.name}”</h1>
         <p className="text-sm mt-2" style={{ color: "var(--color-muted)" }}>
-          {c.description} · valid {formatDate(c.valid_from)} → {formatDate(c.valid_until)}
+          {c.description} ·{" "}
+          {c.kind === "membership"
+            ? "expires with membership"
+            : `valid ${formatDate(c.valid_from)} → ${c.valid_until ? formatDate(c.valid_until) : "—"}`}
         </p>
       </div>
       <div className="flex flex-col gap-6">
