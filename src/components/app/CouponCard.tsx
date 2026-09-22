@@ -1,19 +1,9 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
-import { useFormStatus } from "react-dom";
-import { revealCouponAction, hideCouponAction, type RevealState } from "@/app/app/actions";
+import { useState, useTransition } from "react";
+import { revealCouponAction, hideCouponAction } from "@/app/app/actions";
 import { TransferButton } from "./TransferButton";
 import { formatDate, formatDateTime, formatMobile } from "@/lib/format";
-
-function RevealBtn() {
-  const { pending } = useFormStatus();
-  return (
-    <button type="submit" className="btn btn-gold btn-sm" disabled={pending} aria-busy={pending}>
-      {pending ? "Revealing…" : "Reveal code"}
-    </button>
-  );
-}
 
 export interface CouponCardProps {
   couponId: string;
@@ -34,15 +24,18 @@ export interface CouponCardProps {
  */
 export function CouponCard(props: CouponCardProps) {
   const { couponId, name, description, couponNumber, expUntil, initialCode } = props;
-  const revealAction = revealCouponAction.bind(null, couponId);
-  const [state, formAction] = useActionState<RevealState, FormData>(revealAction, {});
-  const [hidden, setHidden] = useState(false);
+  const [code, setCode] = useState<string | null>(initialCode ?? null);
+  const [uses, setUses] = useState<{ left: number; limit: number }>({
+    left: props.usesLeft,
+    limit: props.usageLimit,
+  });
+  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [revealPending, startReveal] = useTransition();
   const [hidePending, startHide] = useTransition();
 
-  const code = hidden ? null : state.code ?? initialCode ?? null;
-  const usesLeft = state.usesLeft ?? props.usesLeft;
-  const usageLimit = state.usageLimit ?? props.usageLimit;
+  const usesLeft = uses.left;
+  const usageLimit = uses.limit;
 
   async function copy() {
     try {
@@ -54,10 +47,24 @@ export function CouponCard(props: CouponCardProps) {
     }
   }
 
+  function onReveal() {
+    setError(null);
+    startReveal(async () => {
+      const res = await revealCouponAction(couponId, {}, new FormData());
+      if (res.code) {
+        setCode(res.code);
+        if (res.usesLeft != null && res.usageLimit != null)
+          setUses({ left: res.usesLeft, limit: res.usageLimit });
+      } else {
+        setError(res.error ?? "Couldn't reveal the code. Try again.");
+      }
+    });
+  }
+
   function onHide() {
     startHide(async () => {
       await hideCouponAction(couponId, {}, new FormData());
-      setHidden(true);
+      setCode(null);
     });
   }
 
@@ -145,14 +152,22 @@ export function CouponCard(props: CouponCardProps) {
             </div>
           )}
           <div className="mt-3 flex flex-wrap items-start gap-2">
-            <form action={formAction} className="flex flex-col gap-1">
-              <RevealBtn />
-              {state.error && (
+            <div className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={onReveal}
+                disabled={revealPending}
+                aria-busy={revealPending}
+                className="btn btn-gold btn-sm"
+              >
+                {revealPending ? "Revealing…" : "Reveal code"}
+              </button>
+              {error && (
                 <span className="text-xs" style={{ color: "var(--color-danger)" }}>
-                  {state.error}
+                  {error}
                 </span>
               )}
-            </form>
+            </div>
             <TransferButton couponId={couponId} />
           </div>
         </>
