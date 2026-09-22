@@ -31,7 +31,16 @@ export default function Home() {
         </div>
 
         <p className="mt-8 sm:mt-10 text-xs" style={{ color: "var(--color-faint)" }}>
-          made with <span style={{ color: "var(--color-gold)" }}>♥</span> by zeloagent.com
+          made with <span style={{ color: "var(--color-gold)" }}>♥</span> by{" "}
+          <a
+            href="https://zeloagent.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 transition-colors hover:opacity-80"
+            style={{ color: "var(--color-gold)" }}
+          >
+            zeloagent.com
+          </a>
         </p>
       </div>
     </main>
