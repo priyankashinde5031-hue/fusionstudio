@@ -25,8 +25,9 @@ function readForm(formData: FormData) {
     description: formData.get("description"),
     terms: formData.get("terms"),
     kind: formData.get("kind") === "membership" ? "membership" : "marketing",
-    valid_from: formData.get("valid_from"),
-    valid_until: formData.get("valid_until"),
+    // Date fields are absent (null) for membership coupons — normalise to "".
+    valid_from: formData.get("valid_from") ?? "",
+    valid_until: formData.get("valid_until") ?? "",
     usage_limit: formData.get("usage_limit"),
     is_active: formData.get("is_active") === "on" || formData.get("is_active") === "true",
   };
